@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "evidence-finder"
+version = "0.1.0"
+description = "Search a document collection and get ranked passages with exact source references, with measured retrieval quality."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE"]
+# Lower bounds are releases at least two weeks old when they were chosen (2026-11-07).
+dependencies = [
+    "docutils>=0.23,<1",
+    "pypdf>=6.21,<7",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.1,<10",
+    "hypothesis>=6.170,<7",
+    "fpdf2>=2.8.9,<3",   # only to generate test PDFs
+]
+
+[project.scripts]
+evfind = "evfind.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+evfind = ["data/*.jsonl.gz"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+filterwarnings = [
+    "error::ResourceWarning",
+    "error::pytest.PytestUnraisableExceptionWarning",
+]

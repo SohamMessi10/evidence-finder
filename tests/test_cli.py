@@ -1,0 +1,90 @@
+import os
+import subprocess
+import sys
+
+import pytest
+
+from evfind import __version__
+from evfind.cli import main
+
+
+def test_ingest_peps_then_stats(tmp_path, capsys):
+    library = tmp_path / "lib.db"
+    assert main(["ingest", "--peps", "--library", str(library)]) == 0
+    out = capsys.readouterr().out
+    assert "imported 712 PEPs as" in out and "at d94bba4, 2026-11-06" in out
+    assert main(["stats", "--library", str(library)]) == 0
+    assert capsys.readouterr().out.startswith("712 documents (712 indexed, 0 unusable)")
+
+
+def test_ingest_files_lists_what_wasnt_imported(tmp_path, capsys):
+    (tmp_path / "good.txt").write_text("Some text.", encoding="utf-8")
+    (tmp_path / "bad.docx").write_bytes(b"PK")
+    library = tmp_path / "lib.db"
+    code = main(["ingest", str(tmp_path / "good.txt"), str(tmp_path / "bad.docx"), "--library", str(library)])
+    out = capsys.readouterr().out
+    assert code == 0
+    assert "imported 1 of 2 files as 1 passage\n" in out
+    assert f"not imported: {tmp_path / 'bad.docx'}: .docx isn't supported" in out
+    assert main(["stats", "--library", str(library)]) == 0
+    stats = capsys.readouterr().out
+    assert stats.startswith("2 documents (1 indexed, 1 unusable), 1 passage, 2 words\n")
+    assert ".docx isn't supported" in stats
+
+
+def test_ingest_fails_when_nothing_could_be_imported(tmp_path, capsys):
+    (tmp_path / "empty.txt").write_text("", encoding="utf-8")
+    assert main(["ingest", str(tmp_path / "empty.txt"), "--library", str(tmp_path / "lib.db")]) == 1
+    assert "not imported" in capsys.readouterr().out
+
+
+def test_ingest_without_anything_to_import_is_a_usage_error(tmp_path, capsys):
+    with pytest.raises(SystemExit) as exit_info:
+        main(["ingest", "--library", str(tmp_path / "lib.db")])
+    assert exit_info.value.code == 2
+    assert "give files to import, or --peps" in capsys.readouterr().err
+    assert not (tmp_path / "lib.db").exists()
+
+
+def test_stats_on_a_missing_library_explains(tmp_path, capsys):
+    assert main(["stats", "--library", str(tmp_path / "nope.db")]) == 1
+    assert "evfind ingest --peps" in capsys.readouterr().err
+
+
+def test_ingest_into_a_file_that_isnt_a_library_fails_cleanly(tmp_path, capsys):
+    (tmp_path / "x.db").write_bytes(b"not sqlite" * 100)
+    (tmp_path / "a.txt").write_text("hi", encoding="utf-8")
+    assert main(["ingest", str(tmp_path / "a.txt"), "--library", str(tmp_path / "x.db")]) == 1
+    assert "isn't a usable library" in capsys.readouterr().err
+
+
+def test_build_snapshot_command(tmp_path, capsys):
+    from test_peps import make_checkout, pep_text
+
+    checkout = make_checkout(tmp_path / "repo", {"pep-9001.rst": pep_text()})
+    assert main(["build-snapshot", str(checkout), "-o", str(tmp_path / "s.jsonl.gz")]) == 0
+    assert "1 of 1 PEPs included" in capsys.readouterr().out
+    assert main(["build-snapshot", str(tmp_path / "nowhere"), "-o", str(tmp_path / "t.jsonl.gz")]) == 1
+    assert "no PEP files" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("buffering", [[], ["-u"]], ids=["buffered", "unbuffered"])
+def test_a_reader_that_goes_away_early_gets_no_traceback(tmp_path, buffering):
+    """`evfind stats | head -1`: the output pipe closes before evfind has finished writing."""
+    library = tmp_path / "lib.db"
+    assert main(["ingest", "--peps", "--library", str(library)]) == 0
+    # without PYTHONUNBUFFERED, so "buffered" really is buffered wherever the tests run
+    env = {name: value for name, value in os.environ.items() if name != "PYTHONUNBUFFERED"}
+    proc = subprocess.Popen([sys.executable, *buffering, "-m", "evfind.cli", "stats", "--library", str(library)],
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+    proc.stdout.close()
+    stderr = proc.stderr.read()
+    proc.stderr.close()
+    assert proc.wait(timeout=60) == 1
+    assert b"Traceback" not in stderr and b"BrokenPipeError" not in stderr, stderr.decode()
+
+
+def test_the_installed_command_runs():
+    result = subprocess.run([sys.executable, "-m", "evfind.cli", "--version"], capture_output=True, text=True,
+                            timeout=60)
+    assert (result.returncode, result.stdout.strip()) == (0, f"evfind {__version__}")
