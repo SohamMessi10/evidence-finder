@@ -101,6 +101,23 @@ are still recorded in the library, with why, so `evfind stats` shows them.
 | Interface | command line, then a FastAPI page | the stack from SplitLedger |
 | Tests | pytest, Hypothesis; fpdf2 to generate test PDFs | no third-party PDFs in the repo |
 
+## Keyword search (milestone 2)
+
+- **Index:** an FTS5 table, `passage_index`, over each passage's document title, section and
+  text (rowid = passage id), with the `porter unicode61 remove_diacritics 2` tokenizer. Triggers
+  on `passages` and `documents` keep it exact; SQLite runs delete triggers for rows removed by
+  `ON DELETE CASCADE`, so replacing a document removes its old entries. Schema version 2;
+  version 1 libraries are upgraded in one transaction when opened.
+- **Queries:** split into words (letters and digits), each quoted, joined with OR, at most 32
+  words. Quoting means no input is ever read as FTS5 syntax.
+- **Ranking:** FTS5's `bm25()` with a weight for each column, equal until milestone 3 chooses
+  them on the tuning questions. FTS5 fixes BM25's own parameters (k1 = 1.2, b = 0.75), so the
+  column weights are what can be tuned.
+- **Results:** by default the best passage from each document, with a count of the others that
+  matched. Each has an excerpt (FTS5 `snippet()`, with control characters marking the matched
+  words so the terminal and the web page can each show them safely), the place (section, page,
+  lines), a link to the section, and for PEPs a link to the exact lines at the snapshot commit.
+
 ## Evaluation (milestone 3)
 
 A labelled set of questions about the PEPs, each with the PEPs that answer it, split before any

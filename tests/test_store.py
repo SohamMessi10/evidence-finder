@@ -46,7 +46,7 @@ def test_a_library_from_another_version_is_refused(tmp_path):
     conn = sqlite3.connect(tmp_path / "lib.db")
     conn.execute("PRAGMA user_version = 99")
     conn.close()
-    with pytest.raises(StoreError, match="schema 99, expected 1"):
+    with pytest.raises(StoreError, match=f"schema 99, expected {SCHEMA_VERSION}"):
         Library.open(tmp_path / "lib.db")
 
 
@@ -128,6 +128,66 @@ def test_impossible_documents_are_rejected(library, column, value):
 def test_a_passage_needs_an_existing_document(library):
     with pytest.raises(sqlite3.IntegrityError), library.conn:
         library.conn.execute("INSERT INTO passages (document_id, ordinal, text) VALUES (12345, 0, 'x')")
+
+
+def indexed(library):
+    return library.conn.execute("SELECT rowid, title, section, text FROM passage_index ORDER BY rowid").fetchall()
+
+
+def test_the_search_index_follows_every_change(library):
+    library.put("file:a", "text", "Old title", "a.txt", two_passages())
+    first, second = [row[0] for row in library.conn.execute("SELECT id FROM passages ORDER BY id")]
+    assert indexed(library) == [(first, "Old title", "Intro", "First passage."),
+                                (second, "Old title", "Details", "Second passage.")]
+    with library.conn:
+        library.conn.execute("UPDATE passages SET text = 'Edited.' WHERE id = ?", (first,))
+        library.conn.execute("UPDATE documents SET title = 'New title'")
+    assert indexed(library) == [(first, "New title", "Intro", "Edited."),
+                                (second, "New title", "Details", "Second passage.")]
+    with library.conn:
+        library.conn.execute("DELETE FROM documents")  # the passages go by ON DELETE CASCADE
+    assert indexed(library) == []
+
+
+def test_a_milestone_1_library_is_upgraded_in_place(tmp_path):
+    path = tmp_path / "lib.db"
+    with Library.open(path, create=True) as lib:
+        lib.put("file:a", "text", "A", "a.txt", two_passages())
+        lib.conn.executescript("DROP TRIGGER passage_added; DROP TRIGGER passage_removed; "
+                               "DROP TRIGGER passage_changed; DROP TRIGGER document_retitled; "
+                               "DROP TABLE passage_index; PRAGMA user_version = 1;")
+    with Library.open(path) as lib:
+        assert lib.conn.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
+        assert [row[3] for row in indexed(lib)] == ["First passage.", "Second passage."]
+        lib.put("file:b", "text", "B", "b.txt", Extracted(passages=[Passage(0, "Third.")]))
+        assert len(indexed(lib)) == 3  # and the triggers are there for what comes next
+
+
+def test_a_failed_upgrade_changes_nothing(tmp_path, monkeypatch):
+    path = tmp_path / "lib.db"
+    with Library.open(path, create=True) as lib:
+        lib.put("file:a", "text", "A", "a.txt", two_passages())
+        lib.conn.executescript("DROP TRIGGER passage_added; DROP TRIGGER passage_removed; "
+                               "DROP TRIGGER passage_changed; DROP TRIGGER document_retitled; "
+                               "DROP TABLE passage_index; PRAGMA user_version = 1;")
+    monkeypatch.setattr("evfind.store.FILL_SEARCH_INDEX", "INSERT INTO no_such_table VALUES (1);")
+    with pytest.raises(StoreError, match="isn't a usable library"):
+        Library.open(path)
+    conn = sqlite3.connect(path)
+    try:
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 1
+        assert conn.execute("SELECT count(*) FROM sqlite_master WHERE name = 'passage_index'").fetchone()[0] == 0
+        assert conn.execute("SELECT count(*) FROM passages").fetchone()[0] == 2
+    finally:
+        conn.close()
+
+
+def test_without_fts5_the_error_says_why(tmp_path, monkeypatch):
+    from evfind import store
+
+    monkeypatch.setattr(store, "SEARCH_INDEX", store.SEARCH_INDEX.replace("USING fts5(", "USING fts5_missing("))
+    with pytest.raises(StoreError, match="built without FTS5"):
+        Library.open(tmp_path / "lib.db", create=True)
 
 
 def test_two_passages_cant_share_a_position(library):

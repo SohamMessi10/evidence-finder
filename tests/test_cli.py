@@ -69,10 +69,9 @@ def test_build_snapshot_command(tmp_path, capsys):
 
 
 @pytest.mark.parametrize("buffering", [[], ["-u"]], ids=["buffered", "unbuffered"])
-def test_a_reader_that_goes_away_early_gets_no_traceback(tmp_path, buffering):
+def test_a_reader_that_goes_away_early_gets_no_traceback(pep_library, buffering):
     """`evfind stats | head -1`: the output pipe closes before evfind has finished writing."""
-    library = tmp_path / "lib.db"
-    assert main(["ingest", "--peps", "--library", str(library)]) == 0
+    library = pep_library
     # without PYTHONUNBUFFERED, so "buffered" really is buffered wherever the tests run
     env = {name: value for name, value in os.environ.items() if name != "PYTHONUNBUFFERED"}
     proc = subprocess.Popen([sys.executable, *buffering, "-m", "evfind.cli", "stats", "--library", str(library)],
@@ -82,6 +81,73 @@ def test_a_reader_that_goes_away_early_gets_no_traceback(tmp_path, buffering):
     proc.stderr.close()
     assert proc.wait(timeout=60) == 1
     assert b"Traceback" not in stderr and b"BrokenPipeError" not in stderr, stderr.decode()
+
+
+def test_search_shows_where_each_passage_came_from(pep_library, capsys):
+    assert main(["search", "assignment", "expressions", "--limit", "3", "--library", str(pep_library)]) == 0
+    out = capsys.readouterr().out
+    assert "match. The best passage from each of the top 3 documents:" in out.splitlines()[0]
+    assert "PEP 572: Assignment Expressions" in out
+    assert "https://peps.python.org/pep-0572/" in out
+    assert "source: https://github.com/python/peps/blob/d94bba4a5dff241fd418f30223d3bf05de27a771/peps/pep-0572.rst" in out
+    assert "**assignment**" in out.lower() and "more matching passages in this document" in out
+    assert [line[:4] for line in out.splitlines() if line[:4].strip().rstrip(".").isdigit()] == ["  1.", "  2.", "  3."]
+
+
+def test_search_all_passages_can_repeat_a_document(pep_library, capsys):
+    assert main(["search", "walrus", "--all-passages", "-n", "5", "--library", str(pep_library)]) == 0
+    out = capsys.readouterr().out
+    assert "The top 5 passages:" in out and "in this document" not in out
+    titles = [line.split(". ", 1)[1] for line in out.splitlines() if line[:4].strip().rstrip(".").isdigit()]
+    assert len(titles) == 5 and len(set(titles)) < 5  # PEP 622 has several of the best walrus passages
+
+
+def test_the_summary_line_reads_well_for_one_result(tmp_path, capsys):
+    (tmp_path / "a.txt").write_text("walrus", encoding="utf-8")
+    library = str(tmp_path / "lib.db")
+    assert main(["ingest", str(tmp_path / "a.txt"), "--library", library]) == 0
+    capsys.readouterr()
+    assert main(["search", "walrus", "--library", library]) == 0
+    assert capsys.readouterr().out.splitlines()[0] == "1 passage in 1 document matches. The best passage from the top document:"
+    assert main(["search", "walrus", "--all-passages", "--library", library]) == 0
+    assert capsys.readouterr().out.splitlines()[0] == "1 passage in 1 document matches. The top passage:"
+
+
+def test_search_with_no_matches_says_so(pep_library, capsys):
+    assert main(["search", "zzzqqqxx", "--library", str(pep_library)]) == 0
+    assert capsys.readouterr().out == "No passage matches 'zzzqqqxx'.\n"
+
+
+def test_search_for_nothing_is_a_usage_error(pep_library, capsys):
+    assert main(["search", ":=", "?", "--library", str(pep_library)]) == 2
+    assert "nothing to search for" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("limit", ["0", "101", "ten"])
+def test_search_checks_the_limit(pep_library, capsys, limit):
+    with pytest.raises(SystemExit) as exit_info:
+        main(["search", "walrus", "--limit", limit, "--library", str(pep_library)])
+    assert exit_info.value.code == 2
+    assert "--limit" in capsys.readouterr().err
+
+
+def test_search_needs_a_library(tmp_path, capsys):
+    assert main(["search", "walrus", "--library", str(tmp_path / "none.db")]) == 1
+    assert "evfind ingest --peps" in capsys.readouterr().err
+
+
+def test_search_uses_bold_only_in_a_terminal(monkeypatch):
+    from evfind.cli import _emphasis
+
+    class Terminal:
+        def isatty(self):
+            return True
+
+    monkeypatch.setattr(sys, "stdout", Terminal())
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    assert _emphasis() == ("\x1b[1m", "\x1b[0m")
+    monkeypatch.setenv("NO_COLOR", "1")
+    assert _emphasis() == ("**", "**")
 
 
 def test_the_installed_command_runs():

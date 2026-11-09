@@ -43,12 +43,28 @@ def test_a_pep_keeps_its_reference_and_metadata(pep_library):
     assert "assign to variables within an expression" in " ".join(abstract.text.split())
 
 
-def test_importing_the_peps_twice_doesnt_duplicate_them(pep_library, tmp_path):
-    path = tmp_path / "twice.db"
-    with Library.open(path, create=True) as lib:
-        ingest_peps(lib)
-        ingest_peps(lib)
-        assert lib.stats()["documents"] == 712 and lib.stats()["passages"] == pep_library[1].passages
+def small_snapshot(path, count=25):
+    """The first `count` bundled PEPs as a snapshot of their own."""
+    import gzip
+    import json
+    from dataclasses import asdict
+
+    header, peps = read_snapshot(DEFAULT_SNAPSHOT)
+    with gzip.open(path, "wt", encoding="utf-8") as handle:
+        handle.write(json.dumps(header) + "\n")
+        for pep in peps[:count]:
+            handle.write(json.dumps(asdict(pep)) + "\n")
+    return path
+
+
+def test_importing_the_peps_twice_doesnt_duplicate_them(tmp_path):
+    snapshot = small_snapshot(tmp_path / "small.jsonl.gz")
+    with Library.open(tmp_path / "twice.db", create=True) as lib:
+        once, _ = ingest_peps(lib, snapshot)
+        first = lib.stats()
+        ingest_peps(lib, snapshot)
+        assert lib.stats() == first and first["documents"] == 25 and first["passages"] == once.passages
+        assert lib.conn.execute("SELECT count(*) FROM passage_index").fetchone()[0] == once.passages
 
 
 def test_ingest_files_reports_what_it_could_and_couldnt_use(tmp_path):

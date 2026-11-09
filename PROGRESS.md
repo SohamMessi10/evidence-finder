@@ -2,10 +2,73 @@
 
 ## Status
 
-**Milestone 1 of 6 complete: the corpus and extraction.** Next: keyword search (SQLite FTS5,
-BM25) and `evfind search`. The full plan is in [`docs/design.md`](docs/design.md).
+**Milestone 2 of 6 complete: keyword search.** Next: the labelled evaluation set (tuning and
+test questions), its metrics, and `evfind eval`. The full plan is in
+[`docs/design.md`](docs/design.md).
 
 ## Milestones
+
+### Milestone 2: keyword search
+
+- The library's schema is now version 2. It adds a search index: an SQLite FTS5 table over each
+  passage's document title, section and text, with Porter stemming ("expressions" finds
+  "expression") and accents ignored ("cafe" finds "café"). Triggers keep it in step with the
+  passages, including rows removed by `ON DELETE CASCADE` (checked first: SQLite fires delete
+  triggers for those). A milestone 1 library is upgraded the first time it is opened, in one
+  transaction, so a failed upgrade leaves it as it was.
+- `search.py`: the query is split into words and each word is quoted, so nothing typed can be
+  read as FTS5 syntax. Raw text fails: `what is := ?` gives "no such column: is". The words are
+  joined with OR and ranked by BM25, with equal weights for title, section and text for now.
+  Milestone 3 chooses the weights, using the tuning questions only.
+- Results are passages, by default the best one from each document, with how many more matched
+  there. Each result has an excerpt with the matched words marked, and a link to the PEP's
+  section when its anchor is known. It also links to the passage's exact lines in the PEP
+  repository at the snapshot's commit (`…/blob/d94bba4…/peps/pep-0572.rst?plain=1#L17-L28`).
+  GitHub documents `?plain=1` for Markdown; for reStructuredText it is IMPLEMENTED, and to be
+  confirmed by opening one link.
+- `evfind search WORDS... [--limit N] [--all-passages]`: bold highlights in a terminal (none
+  with `NO_COLOR`), `**word**` when piped. Exit codes: 0 with or without matches, 1 for a
+  missing library, 2 for a query with no words or a bad option.
+- Measured on the 2-CPU build workspace, 712 PEPs and 17,165 passages:
+  - *Search:* 300 queries of 1–6 words drawn from PEP titles took 18.0 ms at the median and
+    40.8–45.7 ms at the 95th percentile, 60 ms at most (two runs). Merging the index with
+    FTS5's `optimize` saved a millisecond or two and enlarged the file, so it isn't done.
+  - *Import:* `evfind ingest --peps` now takes 4.6–4.9 s (3 runs; 2.1–2.3 s without the
+    index), and the library is 43 MB (17.5 MB without it).
+- Noticed, and left for milestone 3 to measure rather than adjusting by eye:
+  - "walrus operator" ranks PEP 622 (with its section "Walrus patterns") above PEP 572.
+  - "assignment expressions" ranks PEP 379, the withdrawn first proposal, just above PEP 572.
+  - BM25 favours very short passages: PEP 572's best match there is one line, a code line
+    matched only through its section title. 2,173 of the 17,165 passages (12.7%) are under 20
+    words; some are one-sentence sections, others the short tail of a longer section. Merging
+    short tails is a candidate to test on the tuning questions.
+  - Natural-language questions are dominated by common words ("what", "is").
+- Limits: punctuation and operators can't be searched (`:=` is ignored). Chinese, Japanese and
+  Korean text isn't split into words.
+
+**Tests (183, about 45–50 s; passing on Python 3.12, 3.13 and 3.14):**
+- Any typed text, including FTS5 operators, quotes and `NEAR(`, gives a valid expression or
+  "nothing to search for" (Hypothesis, 300 cases).
+- Any sequence of imports and re-imports leaves the index holding exactly the passages, with
+  their current title, section and text (Hypothesis).
+- Triggers follow updates and deletions; the version 1 upgrade, including a failed one; a SQLite
+  without FTS5.
+- Ranking, grouping, ties, excerpts, links and places, and bad settings.
+- On the PEPs, a functional check (not a quality measure) that title words find their PEP, and
+  that every PEP result links to its exact lines.
+- The command: its output, `--all-passages`, no matches, a query of punctuation only, limits.
+
+**Mutation-checked:** 31 deliberate bugs, each run against the whole suite.
+- 27 were caught at once.
+- Three survivors exposed real gaps, and each now has a test that catches it:
+  - excerpts taken from whichever column matched best instead of the passage text;
+  - `remove_diacritics 1` instead of 2, which "café" can't tell apart but "Tiếng Việt" can;
+  - `--all-passages` dropped from the search call, which the test missed because it checked
+    only the heading.
+- One is equivalent in practice: without the passage-id tie-break, SQLite still returns equal
+  scores in id order. SQL doesn't promise that, so the tie-break stays.
+
+### Milestone 1: corpus and extraction
 
 ### Milestone 1: corpus and extraction
 

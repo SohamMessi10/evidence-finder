@@ -3,6 +3,8 @@
     documents  one row per source: a PEP or an imported file, with where it came from
     passages   the searchable pieces, each pointing back to its document, section, page and lines
     problems   anything worth knowing about a document, including why it couldn't be indexed
+    passage_index  the full-text search index (SQLite FTS5) over each passage's document title,
+                   section and text; triggers keep it in step with `passages`
 
 STRICT tables and CHECK constraints keep impossible rows out (a passage with its last line
 before its first, a PDF page number of 0). Re-importing a document replaces it, so importing
@@ -17,7 +19,7 @@ from pathlib import Path
 
 from evfind.extract import Extracted, Passage
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2  # 1: documents, passages, problems. 2: adds the search index.
 
 SCHEMA = """
 CREATE TABLE documents (
@@ -51,6 +53,46 @@ CREATE TABLE problems (
 ) STRICT;
 """
 
+# The search index's rowid is the passage's id. Porter stemming matches "expressions" with
+# "expression"; remove_diacritics matches "cafe" with "café". The triggers also fire for the
+# rows ON DELETE CASCADE removes, so replacing a document can't leave stale index entries.
+SEARCH_INDEX = """
+CREATE VIRTUAL TABLE passage_index USING fts5(
+    title, section, text,
+    tokenize = 'porter unicode61 remove_diacritics 2'
+);
+
+CREATE TRIGGER passage_added AFTER INSERT ON passages BEGIN
+    INSERT INTO passage_index (rowid, title, section, text)
+    VALUES (new.id, (SELECT title FROM documents WHERE id = new.document_id), new.section, new.text);
+END;
+
+CREATE TRIGGER passage_removed AFTER DELETE ON passages BEGIN
+    DELETE FROM passage_index WHERE rowid = old.id;
+END;
+
+CREATE TRIGGER passage_changed AFTER UPDATE ON passages BEGIN
+    DELETE FROM passage_index WHERE rowid = old.id;
+    INSERT INTO passage_index (rowid, title, section, text)
+    VALUES (new.id, (SELECT title FROM documents WHERE id = new.document_id), new.section, new.text);
+END;
+
+CREATE TRIGGER document_retitled AFTER UPDATE OF title ON documents BEGIN
+    UPDATE passage_index SET title = new.title
+    WHERE rowid IN (SELECT id FROM passages WHERE document_id = new.id);
+END;
+"""
+
+FILL_SEARCH_INDEX = """
+INSERT INTO passage_index (rowid, title, section, text)
+SELECT p.id, d.title, p.section, p.text FROM passages p JOIN documents d ON d.id = p.document_id;
+"""
+
+
+def _upgrade(conn: sqlite3.Connection, script: str) -> None:
+    """Run a schema script and record the new version, all in one transaction."""
+    conn.executescript(f"BEGIN;\n{script}\nPRAGMA user_version = {SCHEMA_VERSION};\nCOMMIT;")
+
 
 class StoreError(Exception):
     """The library file can't be used."""
@@ -75,13 +117,16 @@ class Library:
             if version == 0:
                 if conn.execute("SELECT count(*) FROM sqlite_master").fetchone()[0]:
                     raise StoreError(f"{path} is a SQLite file, but not an Evidence Finder library")
-                with conn:
-                    conn.executescript(SCHEMA)
-                    conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+                _upgrade(conn, SCHEMA + SEARCH_INDEX)
+            elif version == 1:  # made by milestone 1: add the search index for what it already holds
+                _upgrade(conn, SEARCH_INDEX + FILL_SEARCH_INDEX)
             elif version != SCHEMA_VERSION:
                 raise StoreError(f"{path} was made by a different version (schema {version}, expected {SCHEMA_VERSION})")
         except sqlite3.DatabaseError as exc:
             conn.close()
+            if "fts5" in str(exc).lower():
+                raise StoreError("this Python's SQLite was built without FTS5 full-text search, which "
+                                 f"Evidence Finder needs ({exc})") from None
             raise StoreError(f"{path} isn't a usable library ({exc})") from None
         except StoreError:
             conn.close()
