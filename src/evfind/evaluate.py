@@ -33,6 +33,9 @@ KINDS = ("terms", "paraphrase")
 METRICS = ("recall@5", "recall@10", "mrr", "ndcg@10")
 BOOTSTRAP_SAMPLES = 2000
 BOOTSTRAP_SEED = 20261109
+# LSA dimensions, and hybrid fusion settings (keyword weight, c), tried when tuning.
+DIMENSION_GRID = (100, 200, 300, 400, 500, 600, 800)
+FUSION_GRID = tuple(itertools.product((1.0, 2.0), (10.0, 30.0, 60.0)))
 # Column weights tried when tuning (title, section, text). Text stays 1: only the ratios matter.
 WEIGHT_GRID = tuple((t, s, 1.0) for t, s in itertools.product((1.0, 2.0, 4.0, 8.0, 16.0, 32.0), (1.0, 2.0, 4.0)))
 
@@ -112,10 +115,12 @@ class Outcome:
     scores: dict[str, float]
 
 
-def run(library: Library, questions: list[Question], weights: tuple[float, float, float]) -> list[Outcome]:
+def run(library: Library, questions: list[Question], weights: tuple[float, float, float],
+        method: str = "keyword", **options) -> list[Outcome]:
     outcomes = []
     for question in questions:
-        hits = search(library, question.text, limit=MAX_LIMIT, per_document=1, weights=weights).hits
+        hits = search(library, question.text, limit=MAX_LIMIT, per_document=1, weights=weights,
+                      method=method, **options).hits
         ranked = [hit.key for hit in hits]
         outcomes.append(Outcome(question, ranked, score(ranked, question.relevant)))
     return outcomes
@@ -153,3 +158,23 @@ def tune(library: Library, questions: list[Question], grid=None, metric: str = "
         results.append((sum(o.scores[metric] for o in outcomes) / len(outcomes), -order, weights))
     results.sort(reverse=True)
     return [(weights, mean) for mean, _, weights in results]
+
+
+def tune_semantic(library: Library, questions: list[Question], dimensions=None, fusion=None, metric: str = "mrr"):
+    """For each number of LSA dimensions: semantic search's mean `metric`, and hybrid's for each
+    fusion setting. Rows of (dimensions, method, (keyword weight, c) or None, mean), best first;
+    ties go to fewer dimensions, then the grid's order. Tuning questions only."""
+    from evfind.search import DEFAULT_WEIGHTS
+    from evfind.semantic import SemanticIndex, _rows
+
+    if any(q.split != "tuning" for q in questions):
+        raise EvaluationError("settings may only be tuned on tuning questions")
+    rows, results, order = _rows(library), [], 0
+    for k in dimensions or DIMENSION_GRID:
+        index = SemanticIndex.fit(rows, f"tuning-{k}", dimensions=k)
+        for method, setting in [("semantic", None)] + [("hybrid", f) for f in (fusion or FUSION_GRID)]:
+            outcomes = run(library, questions, DEFAULT_WEIGHTS, method, index=index, fusion=setting)
+            results.append((sum(o.scores[metric] for o in outcomes) / len(outcomes), -order, k, method, setting))
+            order += 1
+    results.sort(key=lambda r: (r[0], r[1]), reverse=True)
+    return [(k, method, setting, mean) for mean, _, k, method, setting in results]

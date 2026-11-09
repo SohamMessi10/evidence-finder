@@ -155,7 +155,7 @@ def test_eval_reports_a_split_with_the_baseline_and_misses(pep_library, capsys):
     assert main(["eval", "--split", "tuning", "--compare", "--misses", "--library", str(pep_library)]) == 0
     out = capsys.readouterr().out
     assert out.startswith("49 tuning questions (30 using the PEP's terms, 19 paraphrased); "
-                          "weights title 8, section 1, text 1")
+                          "keyword search, weights title 8, section 1, text 1")
     assert "mrr        0.797 [" in out
     assert "Change from equal weights (title 1, section 1, text 1), paired:\n  recall@5" in out
     assert "  mrr        +0.076 [" in out
@@ -185,6 +185,43 @@ def test_eval_checks_the_weights(pep_library, capsys, weights):
     with pytest.raises(SystemExit) as exit_info:
         main(["eval", "--weights", weights, "--library", str(pep_library)])
     assert exit_info.value.code == 2 and "--weights" in capsys.readouterr().err
+
+
+def test_search_by_meaning_says_so(pep_library, capsys):
+    assert main(["search", "walrus", "operator", "--method", "semantic", "-n", "2", "--library", str(pep_library)]) == 0
+    out = capsys.readouterr()
+    assert "are related by meaning (LSA). The best passage from each of the top 2 documents:" in out.out
+    assert out.err == ""  # the index was already built: nothing to report
+
+
+def test_hybrid_search_command(pep_library, capsys):
+    assert main(["search", "walrus", "operator", "--method", "hybrid", "-n", "3", "--library", str(pep_library)]) == 0
+    assert "match. The best passage from each of the top 3 documents:" in capsys.readouterr().out
+
+
+def test_eval_hybrid_compares_with_keyword_search(pep_library, capsys):
+    assert main(["eval", "--split", "tuning", "--method", "hybrid", "--compare", "--library", str(pep_library)]) == 0
+    out = capsys.readouterr().out
+    assert "hybrid search, 100 LSA dimensions, keyword weight 2, c 10" in out.splitlines()[0]
+    assert "Change from keyword search, paired:" in out
+    changes = out.split("Change from keyword search, paired:")[1].split()
+    assert any(value not in ("+0.000", "[+0.000,", "+0.000]") for value in changes[1::4])  # really compared
+
+
+def test_eval_dimensions_need_a_semantic_method(pep_library, capsys):
+    assert main(["eval", "--dimensions", "50", "--library", str(pep_library)]) == 1
+    assert "--dimensions needs --method semantic or hybrid" in capsys.readouterr().err
+
+
+def test_tune_hybrid_lists_lsa_and_fusion_settings(pep_library, capsys, monkeypatch):
+    monkeypatch.setattr("evfind.evaluate.DIMENSION_GRID", (100,))      # the full grid takes minutes
+    monkeypatch.setattr("evfind.evaluate.FUSION_GRID", ((2.0, 10.0),))
+    assert main(["tune", "--method", "hybrid", "--library", str(pep_library)]) == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[0] == "Mean reciprocal rank on 49 tuning questions, best first:"
+    assert [line.rsplit(None, 1)[0].strip() for line in lines[1:]] == [
+        "hybrid, 100 dimensions, keyword weight 2, c 10", "semantic, 100 dimensions"]
+    assert lines[1].split()[-1] == "0.788"
 
 
 def test_the_installed_command_runs():

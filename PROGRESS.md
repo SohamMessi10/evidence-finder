@@ -2,11 +2,63 @@
 
 ## Status
 
-**Milestone 3 of 6 complete: measured search quality.** Next: semantic (LSA) and hybrid
-search, compared with keyword search on the test questions. The full plan is in
+**Milestone 4 of 6 complete: semantic and hybrid search, measured.** Next: a search page
+(FastAPI) showing ranked excerpts with links to the exact source. The full plan is in
 [`docs/design.md`](docs/design.md); the evaluation is in [`docs/evaluation.md`](docs/evaluation.md).
 
 ## Milestones
+
+### Milestone 4: semantic and hybrid search
+
+- `semantic.py`: LSA (scikit-learn 1.9 TF-IDF and truncated SVD, seeded) over each passage's
+  title, section and text; cosine similarity. Named LSA, not embeddings: the build machine
+  can't download neural models.
+- The index is stored in the library (schema 3, table `semantic_index`) as numpy arrays loaded
+  with `allow_pickle=False`, with a fingerprint of the passages and settings. It is fitted on
+  the first semantic search (2.9 s for the 17,165 PEP passages at 100 dimensions) and refitted
+  when the library changes.
+- Hybrid search: weighted reciprocal rank fusion of the keyword and LSA document rankings.
+  `evfind search --method keyword|semantic|hybrid`; `evfind eval --method … [--dimensions N]`;
+  `evfind tune --method hybrid`.
+- **Tuning questions only:** hybrid at 100 dimensions, keyword weight 2, *c* = 10 (MRR 0.788;
+  400 and 500 dimensions tied at 0.787). A prototype had preferred 400, but it fused only the
+  top 100 of each ranking; the shipped tuning, which fuses exactly as search does, decided.
+  - LSA alone was best at 800 dimensions (0.680), and was tested there.
+  - Keyword search stayed the default (0.797 on tuning), fixed before the test run.
+- **Test questions, run once:**
+  - *Hybrid against keyword:* Recall@10 0.915 against 0.852, paired +0.062 [+0.010, +0.115];
+    questions with nothing relevant in the top 10 fell from 13 to 7, all of them paraphrased.
+    MRR +0.026 [−0.014, +0.068], not clear.
+  - *LSA alone:* no better than keyword search on any metric.
+- Recorded rather than done: making hybrid the default. These test results favour it, but
+  choosing the default from them would turn the test set into a tuning set.
+- Found while building:
+  - The dimension count was frozen into `fit`'s signature, so changing it didn't reach the
+    index; it is now read when called.
+  - Libraries opened in the new tests weren't closed (the warning filter caught it).
+  - On a 12-passage test library, 100 dimensions reproduce the word overlap exactly, so LSA
+    can't generalise; those tests use 2.
+
+**Tests (247, about 2 min; passing on Python 3.12, 3.13 and 3.14):**
+- LSA links related words across two topics ("automobile" finds the truck passage).
+- Deterministic fitting, a byte round trip, refusal of pickled or older-format arrays, and too
+  small or all-stop-word libraries.
+- The index is built once, stored, reused, and rebuilt when the library changes or the stored
+  copy is unreadable.
+- Fusion arithmetic and ties; all three methods in both result modes.
+- The schema 2 → 3 upgrade, and the commands.
+- The published numbers: keyword exactly; hybrid and LSA within 0.02, since the SVD's
+  floating-point sums can differ between machines.
+
+**Mutation-checked:** 24 deliberate bugs. 18 were caught at once. Of the 6 survivors:
+- 4 were test gaps, each now with a test:
+  - the guard for fewer than 2 dimensions;
+  - hybrid's choice of a document's keyword passage;
+  - tuning ignoring the dimensions given;
+  - `--compare` comparing hybrid with itself.
+- 1 was equivalent, and the code was simplified so the condition is gone.
+- 1 is equivalent in practice: numpy's default sort happens to keep tied similarities in order,
+  but isn't documented to, so the explicit tie-break stays.
 
 ### Milestone 3: labelled evaluation
 

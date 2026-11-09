@@ -155,12 +155,23 @@ def test_a_milestone_1_library_is_upgraded_in_place(tmp_path):
         lib.put("file:a", "text", "A", "a.txt", two_passages())
         lib.conn.executescript("DROP TRIGGER passage_added; DROP TRIGGER passage_removed; "
                                "DROP TRIGGER passage_changed; DROP TRIGGER document_retitled; "
-                               "DROP TABLE passage_index; PRAGMA user_version = 1;")
+                               "DROP TABLE passage_index; DROP TABLE semantic_index; PRAGMA user_version = 1;")
     with Library.open(path) as lib:
         assert lib.conn.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
         assert [row[3] for row in indexed(lib)] == ["First passage.", "Second passage."]
         lib.put("file:b", "text", "B", "b.txt", Extracted(passages=[Passage(0, "Third.")]))
         assert len(indexed(lib)) == 3  # and the triggers are there for what comes next
+
+
+def test_a_milestone_2_library_gains_the_semantic_index_table(tmp_path):
+    path = tmp_path / "lib.db"
+    with Library.open(path, create=True) as lib:
+        lib.put("file:a", "text", "A", "a.txt", two_passages())
+        lib.conn.executescript("DROP TABLE semantic_index; PRAGMA user_version = 2;")
+    with Library.open(path) as lib:
+        assert lib.conn.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION == 3
+        assert lib.conn.execute("SELECT count(*) FROM semantic_index").fetchone()[0] == 0
+        assert len(indexed(lib)) == 2
 
 
 def test_a_failed_upgrade_changes_nothing(tmp_path, monkeypatch):
@@ -169,7 +180,7 @@ def test_a_failed_upgrade_changes_nothing(tmp_path, monkeypatch):
         lib.put("file:a", "text", "A", "a.txt", two_passages())
         lib.conn.executescript("DROP TRIGGER passage_added; DROP TRIGGER passage_removed; "
                                "DROP TRIGGER passage_changed; DROP TRIGGER document_retitled; "
-                               "DROP TABLE passage_index; PRAGMA user_version = 1;")
+                               "DROP TABLE passage_index; DROP TABLE semantic_index; PRAGMA user_version = 1;")
     monkeypatch.setattr("evfind.store.FILL_SEARCH_INDEX", "INSERT INTO no_such_table VALUES (1);")
     with pytest.raises(StoreError, match="isn't a usable library"):
         Library.open(path)

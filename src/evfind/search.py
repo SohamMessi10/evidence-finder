@@ -74,8 +74,9 @@ class Results:
     query: str
     words: tuple[str, ...]
     hits: list[Hit]
-    passages_matched: int
+    passages_matched: int      # keyword: containing a query word; semantic: any positive similarity
     documents_matched: int
+    method: str = "keyword"
 
 
 def match_expression(query: str) -> tuple[str, tuple[str, ...]]:
@@ -107,39 +108,87 @@ def source_url(meta: dict, line_start: int | None, line_end: int | None) -> str:
     return f"https://github.com/python/peps/blob/{commit}/{path}?plain=1#{lines}"
 
 
+METHODS = ("keyword", "semantic", "hybrid")
+
+
 def search(library: Library, query: str, *, limit: int = 10, per_document: int | None = 1,
-           weights: tuple[float, float, float] = DEFAULT_WEIGHTS) -> Results:
-    """The best passages for a query; at most `per_document` from each document (None: no limit)."""
+           weights: tuple[float, float, float] = DEFAULT_WEIGHTS, method: str = "keyword",
+           fusion: tuple[float, float] | None = None, index=None, progress=None) -> Results:
+    """The best passages for a query; at most `per_document` from each document (None: no limit).
+
+    method: "keyword" (BM25), "semantic" (LSA), or "hybrid" (the two fused); see semantic.py.
+    fusion: (keyword weight, c) for hybrid, default semantic.KEYWORD_WEIGHT and FUSION_C.
+    index: a SemanticIndex to use instead of the library's own (for tuning its dimensions).
+    """
     if not 1 <= limit <= MAX_LIMIT:
         raise SearchError(f"the number of results must be between 1 and {MAX_LIMIT}")
     if per_document is not None and per_document < 1:
         raise SearchError("passages per document must be at least 1")
     if len(weights) != 3 or any(not w > 0 for w in weights):
         raise SearchError("the three column weights must be positive")
+    if method not in METHODS:
+        raise SearchError(f"the method must be one of {', '.join(METHODS)}")
     expression, words = match_expression(query)
     conn = library.conn
 
-    # FTS5's bm25() is lower for better matches, so ascending order puts the best first; the
-    # passage id breaks ties so the order never depends on the query plan.
-    matched = conn.execute(
-        "SELECT passage_index.rowid, p.document_id, bm25(passage_index, ?, ?, ?) AS score, "
-        "bm25(passage_index, ?, ?, ?) AS fit "
-        "FROM passage_index JOIN passages p ON p.id = passage_index.rowid "
-        "WHERE passage_index MATCH ? ORDER BY score, passage_index.rowid",
-        (*map(float, weights), *PASSAGE_WEIGHTS, expression)).fetchall()
-    per_doc = Counter(document for _, document, _, _ in matched)
+    # Keyword: FTS5's bm25() is lower for better matches, so ascending order puts the best first;
+    # the passage id breaks ties so the order never depends on the query plan.
+    keyword_rows = []  # (passage id, document id, score, fit)
+    if method != "semantic":
+        keyword_rows = conn.execute(
+            "SELECT passage_index.rowid, p.document_id, bm25(passage_index, ?, ?, ?) AS score, "
+            "bm25(passage_index, ?, ?, ?) AS fit "
+            "FROM passage_index JOIN passages p ON p.id = passage_index.rowid "
+            "WHERE passage_index MATCH ? ORDER BY score, passage_index.rowid",
+            (*map(float, weights), *PASSAGE_WEIGHTS, expression)).fetchall()
+    keyword_docs: dict[int, list] = {}  # documents in order of their best row; dicts keep insertion order
+    for row in keyword_rows:
+        keyword_docs.setdefault(row[1], []).append(row)
+    keyword_count = Counter(document for _, document, _, _ in keyword_rows)
 
-    chosen = []  # (passage id, document, the score its rank is shown with)
+    semantic_rows = []  # (passage id, document id, similarity), best first
+    if method != "keyword":
+        from evfind import semantic
+
+        try:
+            index = index or semantic.load_index(library, progress=progress)
+        except semantic.SemanticUnavailable as exc:
+            raise SearchError(str(exc)) from None
+        keyword_weight, c = fusion or (semantic.KEYWORD_WEIGHT, semantic.FUSION_C)
+        semantic_rows = semantic.rank_passages(index, query)
+    semantic_docs: dict[int, list] = {}
+    for row in semantic_rows:
+        semantic_docs.setdefault(row[1], []).append(row)
+
+    def keyword_passages(document, n):  # the passages whose section and text fit best
+        return [row[0] for row in sorted(keyword_docs[document], key=lambda r: (r[3], r[2], r[0]))[:n]]
+
+    def semantic_passages(document, n):
+        return [row[0] for row in semantic_docs[document][:n]]
+
+    # (passage id, document id, score shown: higher is better)
+    chosen: list[tuple[int, int, float]] = []
     if per_document is None:
-        chosen = [(passage_id, document, score) for passage_id, document, score, _ in matched[:limit]]
+        if method == "keyword":
+            chosen = [(pid, doc, -score) for pid, doc, score, _ in keyword_rows[:limit]]
+        elif method == "semantic":
+            chosen = [(pid, doc, sim) for pid, doc, sim in semantic_rows[:limit]]
+        else:
+            document_of = {pid: doc for pid, doc, *_ in [*keyword_rows, *semantic_rows]}
+            fused = semantic.fuse([r[0] for r in keyword_rows], [r[0] for r in semantic_rows],
+                                  c=c, keyword_weight=keyword_weight)
+            chosen = [(pid, document_of[pid], score) for pid, score in fused[:limit]]
     else:
-        by_document: dict[int, list] = {}
-        for row in matched:  # documents in order of their best row; dicts keep insertion order
-            by_document.setdefault(row[1], []).append(row)
-        for document, rows in by_document.items():
-            best = rows[0][2]
-            for passage_id, _, score, fit in sorted(rows, key=lambda r: (r[3], r[2], r[0]))[:per_document]:
-                chosen.append((passage_id, document, best))
+        if method == "keyword":
+            ranking = [(doc, -rows[0][2]) for doc, rows in keyword_docs.items()]
+        elif method == "semantic":
+            ranking = [(doc, rows[0][2]) for doc, rows in semantic_docs.items()]
+        else:
+            ranking = semantic.fuse(list(keyword_docs), list(semantic_docs), c=c, keyword_weight=keyword_weight)
+        for document, score in ranking:
+            pick = keyword_passages if document in keyword_docs and method != "semantic" else semantic_passages
+            for passage_id in pick(document, per_document):
+                chosen.append((passage_id, document, score))
                 if len(chosen) == limit:
                     break
             if len(chosen) == limit:
@@ -153,17 +202,23 @@ def search(library: Library, query: str, *, limit: int = 10, per_document: int |
         (MARK_START, MARK_END, EXCERPT_TOKENS, expression, *ids)).fetchall()) if ids else {}
     details = {row[0]: row[1:] for row in conn.execute(
         f"SELECT p.id, d.key, d.kind, d.title, d.source, d.url, d.meta, p.section, p.anchor, p.page, "
-        f"p.line_start, p.line_end FROM passages p JOIN documents d ON d.id = p.document_id "
+        f"p.line_start, p.line_end, p.text FROM passages p JOIN documents d ON d.id = p.document_id "
         f"WHERE p.id IN ({marks})", ids)} if ids else {}
 
     hits = []
     for rank, (passage_id, document, score) in enumerate(chosen, start=1):
-        key, kind, title, source, url, meta, section, anchor, page, line_start, line_end = details[passage_id]
+        key, kind, title, source, url, meta, section, anchor, page, line_start, line_end, text = details[passage_id]
+        # A passage found by meaning alone may share no word with the query: show its opening.
+        words_of_text = text.split()
+        opening = " ".join(words_of_text[:EXCERPT_TOKENS]) + ("…" if len(words_of_text) > EXCERPT_TOKENS else "")
         hits.append(Hit(
-            rank=rank, score=-score, key=key, kind=kind, title=title, source=source,
+            rank=rank, score=score, key=key, kind=kind, title=title, source=source,
             url=f"{url}#{anchor}" if url and anchor else url,
             source_url=source_url(json.loads(meta), line_start, line_end),
             section=section, page=page, line_start=line_start, line_end=line_end,
-            excerpt=excerpts.get(passage_id, ""), more_in_document=per_doc[document] - 1,
+            excerpt=excerpts.get(passage_id, opening),
+            more_in_document=max(keyword_count[document] - 1, 0),  # 0 for semantic: no keyword matches
         ))
-    return Results(query, words, hits, len(matched), len(per_doc))
+    found = {pid for pid, *_ in keyword_rows} | {pid for pid, *_ in semantic_rows}
+    documents = set(keyword_docs) | set(semantic_docs)
+    return Results(query, words, hits, len(found), len(documents), method)

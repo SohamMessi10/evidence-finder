@@ -19,6 +19,7 @@ from evfind.evaluate import (
     score,
     summarise,
     tune,
+    tune_semantic,
 )
 from evfind.extract import Extracted, Passage
 from evfind.ingest import DEFAULT_SNAPSHOT
@@ -182,6 +183,29 @@ def test_tuning_returns_every_setting_best_first(small_library):
     assert all(mrr == 1.0 for _, mrr in ranking)
 
 
+def test_semantic_tuning_refuses_test_questions(small_library):
+    with pytest.raises(EvaluationError, match="only be tuned on tuning questions"):
+        tune_semantic(small_library, [question("a", "walrus", ["pep-0001"], split="test")])
+
+
+def test_semantic_tuning_fits_each_size_it_is_given(small_library, monkeypatch):
+    from evfind.semantic import SemanticIndex
+
+    sizes, real_fit = [], SemanticIndex.fit.__func__
+    monkeypatch.setattr(SemanticIndex, "fit", classmethod(
+        lambda cls, rows, fp, dimensions=None: sizes.append(dimensions) or real_fit(cls, rows, fp, dimensions)))
+    tune_semantic(small_library, [question("a", "walrus", ["pep-0002"])], dimensions=(2, 7), fusion=((2.0, 10.0),))
+    assert sizes == [2, 7]
+
+
+def test_semantic_tuning_tries_lsa_alone_and_each_fusion_setting(small_library):
+    rows = tune_semantic(small_library, [question("a", "walrus", ["pep-0002"])], dimensions=(2,),
+                         fusion=((2.0, 10.0), (1.0, 60.0)))
+    assert sorted((k, method, setting) for k, method, setting, _ in rows) == [
+        (2, "hybrid", (1.0, 60.0)), (2, "hybrid", (2.0, 10.0)), (2, "semantic", None)]
+    assert [mrr for *_, mrr in rows] == sorted((mrr for *_, mrr in rows), reverse=True)
+
+
 # --- the published numbers ------------------------------------------------------------------
 
 
@@ -195,3 +219,23 @@ def test_the_published_test_results_are_what_the_code_produces(pep_library):
     assert means == {"recall@5": 0.800, "recall@10": 0.852, "mrr": 0.708, "ndcg@10": 0.733}
     assert round(compare(equal, tuned, "mrr")[0], 3) == 0.030
     assert sum(o.scores["recall@10"] == 0 for o in tuned) == 13
+
+
+def test_the_published_hybrid_and_semantic_results_are_what_the_code_produces(pep_library):
+    """docs/evaluation.md, milestone 4. LSA's SVD sums floating-point numbers in an order that can
+    differ between maths libraries (Linux and macOS), which can swap near-ties, so these allow
+    0.02; keyword search, which has no such step, is checked exactly above."""
+    from evfind.semantic import SEMANTIC_ALONE_DIMENSIONS, SemanticIndex, _rows
+
+    questions = [q for q in load_questions(DEFAULT_QUESTIONS) if q.split == "test"]
+    with Library.open(pep_library) as library:
+        keyword = run(library, questions, DEFAULT_WEIGHTS)
+        hybrid = run(library, questions, DEFAULT_WEIGHTS, "hybrid")
+        alone = SemanticIndex.fit(_rows(library), "test", dimensions=SEMANTIC_ALONE_DIMENSIONS)
+        lsa = run(library, questions, DEFAULT_WEIGHTS, "semantic", index=alone)
+    means = lambda outcomes: {m: v[0] for m, v in summarise(outcomes).items()}  # noqa: E731
+    assert means(hybrid) == pytest.approx({"recall@5": 0.832, "recall@10": 0.915, "mrr": 0.734, "ndcg@10": 0.769},
+                                          abs=0.02)
+    assert means(lsa) == pytest.approx({"recall@5": 0.786, "recall@10": 0.885, "mrr": 0.675, "ndcg@10": 0.723},
+                                       abs=0.02)
+    assert compare(keyword, hybrid, "recall@10")[0] == pytest.approx(0.062, abs=0.02)

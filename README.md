@@ -5,8 +5,8 @@ its source (document, section or page, line numbers, a link), so every result ca
 Retrieval quality is measured on a labelled question set, so any claim that one search method
 beats another comes with numbers.
 
-**Status: milestone 3 of 6 (measured search quality).** Semantic search comes next. The plan
-is in [`docs/design.md`](docs/design.md), the evaluation in
+**Status: milestone 4 of 6 (semantic and hybrid search, measured).** A search page comes next.
+The plan is in [`docs/design.md`](docs/design.md), the evaluation in
 [`docs/evaluation.md`](docs/evaluation.md), and progress in [`PROGRESS.md`](PROGRESS.md).
 
 ## How good is it?
@@ -19,7 +19,11 @@ Measured once on 96 held-out test questions about the PEPs (95% bootstrap interv
 | MRR | 0.894 [0.824, 0.952] | 0.411 [0.292, 0.548] |
 
 Keyword search finds the answer when the question shares its words, and often misses it when
-it doesn't. That gap is what semantic search, the next milestone, has to close. The questions
+it doesn't. **Hybrid search** (`--method hybrid`: keyword search fused with LSA semantic search)
+closes part of that gap: on the same test questions, Recall@10 rises from 0.852 to 0.915 (+0.062,
+95% interval [+0.010, +0.115]), and the questions with no right answer in the top 10 fall from
+13 to 7. It doesn't clearly rank the answer higher at the very top, and LSA on its own is no
+better than keyword search. The questions
 were written and labelled by an AI assistant before any search was run on them, not by
 independent judges; [`docs/evaluation.md`](docs/evaluation.md) explains how they were made,
 what was tuned, and what the numbers can't show.

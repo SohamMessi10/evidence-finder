@@ -121,6 +121,23 @@ are still recorded in the library, with why, so `evfind stats` shows them.
   words so the terminal and the web page can each show them safely), the place (section, page,
   lines), a link to the section, and for PEPs a link to the exact lines at the snapshot commit.
 
+## Semantic and hybrid search (milestone 4)
+
+- **LSA:** scikit-learn's TF-IDF (sublinear, English stop words, words in at least 2 passages)
+  over title, section and text, then a truncated SVD to 100 dimensions (seeded, so a rebuild is
+  identical), cosine similarity. Neural embedding models can't be downloaded on the build
+  machine, so this is a classical method, named as such.
+- **Storage:** the fitted vocabulary, IDF weights, SVD components and passage vectors, as numpy
+  arrays in one row of the library (`semantic_index`, schema version 3), loaded with
+  `allow_pickle=False` so opening a library can never run code. The row records a fingerprint
+  of the passages and settings; the index is fitted on the first semantic search and refitted
+  when the fingerprint changes. `evfind ingest` doesn't pay for it.
+- **Hybrid:** weighted reciprocal rank fusion of the two document rankings (keyword weight 2,
+  *c* = 10). A document's passage is the keyword choice if it matched words, otherwise its most
+  similar passage; a passage found by meaning alone shows its opening words, since there is no
+  matched word to mark.
+- **Default:** keyword search, fixed before the test comparison; `--method semantic|hybrid`.
+
 ## Evaluation (milestone 3)
 
 145 labelled questions about the PEPs (89 using the PEP's terms, 56 paraphrased), split before

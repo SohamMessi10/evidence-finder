@@ -19,7 +19,7 @@ from pathlib import Path
 
 from evfind.extract import Extracted, Passage
 
-SCHEMA_VERSION = 2  # 1: documents, passages, problems. 2: adds the search index.
+SCHEMA_VERSION = 3  # 1: documents, passages, problems. 2: the keyword index. 3: the semantic index.
 
 SCHEMA = """
 CREATE TABLE documents (
@@ -89,6 +89,17 @@ SELECT p.id, d.title, p.section, p.text FROM passages p JOIN documents d ON d.id
 """
 
 
+# The LSA index (semantic.py): one row of numpy arrays, built on the first semantic search and
+# rebuilt when the passages change. It is a cache: deleting the row only costs a rebuild.
+SEMANTIC_INDEX = """
+CREATE TABLE semantic_index (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    fingerprint TEXT NOT NULL,
+    data BLOB NOT NULL
+) STRICT;
+"""
+
+
 def _upgrade(conn: sqlite3.Connection, script: str) -> None:
     """Run a schema script and record the new version, all in one transaction."""
     conn.executescript(f"BEGIN;\n{script}\nPRAGMA user_version = {SCHEMA_VERSION};\nCOMMIT;")
@@ -117,9 +128,11 @@ class Library:
             if version == 0:
                 if conn.execute("SELECT count(*) FROM sqlite_master").fetchone()[0]:
                     raise StoreError(f"{path} is a SQLite file, but not an Evidence Finder library")
-                _upgrade(conn, SCHEMA + SEARCH_INDEX)
+                _upgrade(conn, SCHEMA + SEARCH_INDEX + SEMANTIC_INDEX)
             elif version == 1:  # made by milestone 1: add the search index for what it already holds
-                _upgrade(conn, SEARCH_INDEX + FILL_SEARCH_INDEX)
+                _upgrade(conn, SEARCH_INDEX + FILL_SEARCH_INDEX + SEMANTIC_INDEX)
+            elif version == 2:  # made by milestones 2 and 3
+                _upgrade(conn, SEMANTIC_INDEX)
             elif version != SCHEMA_VERSION:
                 raise StoreError(f"{path} was made by a different version (schema {version}, expected {SCHEMA_VERSION})")
         except sqlite3.DatabaseError as exc:
