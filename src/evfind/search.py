@@ -6,6 +6,12 @@ joined with OR and BM25 ranks the passages, so a passage needn't contain every w
 
 Results are passages, at most `per_document` from each document by default, each with the
 exact place it came from and an excerpt with the matched words marked.
+
+Ranking documents and choosing their passages are separate. FTS5's bm25() normalises by the
+length of the whole row, so with a heavy title weight the best-scoring row of a document is
+simply its shortest passage (a one-line copyright notice). Documents are therefore ranked by
+their best row under DEFAULT_WEIGHTS, and the passage shown for each is the one whose section
+and text match best (PASSAGE_WEIGHTS: the title, the same for all of them, is left out).
 """
 
 from __future__ import annotations
@@ -22,9 +28,12 @@ QUERY_WORD = re.compile(r"[^\W_]+")      # letters and digits: what the FTS5 tok
 MAX_QUERY_WORDS = 32
 MAX_LIMIT = 100
 EXCERPT_TOKENS = 32                      # FTS5 allows at most 64
-# BM25 weights for the title, section and text columns. Equal until milestone 3 chooses them
-# using the tuning questions only.
-DEFAULT_WEIGHTS = (1.0, 1.0, 1.0)
+# BM25 weights for the title, section and text columns, chosen on the 49 tuning questions only
+# (docs/evaluation.md): title 8 had the best MRR, 0.797 against 0.721 for equal weights, and
+# larger title weights or any extra section weight did no better.
+DEFAULT_WEIGHTS = (8.0, 1.0, 1.0)
+EQUAL_WEIGHTS = (1.0, 1.0, 1.0)  # the milestone 2 setting, kept as the baseline
+PASSAGE_WEIGHTS = (0.0, 1.0, 1.0)  # choosing a document's passage: its section and text only
 
 
 class SearchError(ValueError):
@@ -113,20 +122,28 @@ def search(library: Library, query: str, *, limit: int = 10, per_document: int |
     # FTS5's bm25() is lower for better matches, so ascending order puts the best first; the
     # passage id breaks ties so the order never depends on the query plan.
     matched = conn.execute(
-        "SELECT passage_index.rowid, p.document_id, bm25(passage_index, ?, ?, ?) AS score "
+        "SELECT passage_index.rowid, p.document_id, bm25(passage_index, ?, ?, ?) AS score, "
+        "bm25(passage_index, ?, ?, ?) AS fit "
         "FROM passage_index JOIN passages p ON p.id = passage_index.rowid "
         "WHERE passage_index MATCH ? ORDER BY score, passage_index.rowid",
-        (*map(float, weights), expression)).fetchall()
-    per_doc = Counter(document for _, document, _ in matched)
+        (*map(float, weights), *PASSAGE_WEIGHTS, expression)).fetchall()
+    per_doc = Counter(document for _, document, _, _ in matched)
 
-    chosen, taken = [], Counter()
-    for passage_id, document, score in matched:
-        if per_document is not None and taken[document] >= per_document:
-            continue
-        taken[document] += 1
-        chosen.append((passage_id, document, score))
-        if len(chosen) == limit:
-            break
+    chosen = []  # (passage id, document, the score its rank is shown with)
+    if per_document is None:
+        chosen = [(passage_id, document, score) for passage_id, document, score, _ in matched[:limit]]
+    else:
+        by_document: dict[int, list] = {}
+        for row in matched:  # documents in order of their best row; dicts keep insertion order
+            by_document.setdefault(row[1], []).append(row)
+        for document, rows in by_document.items():
+            best = rows[0][2]
+            for passage_id, _, score, fit in sorted(rows, key=lambda r: (r[3], r[2], r[0]))[:per_document]:
+                chosen.append((passage_id, document, best))
+                if len(chosen) == limit:
+                    break
+            if len(chosen) == limit:
+                break
 
     ids = [passage_id for passage_id, _, _ in chosen]
     marks = ",".join("?" * len(ids))

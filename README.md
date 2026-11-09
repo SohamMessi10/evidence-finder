@@ -5,8 +5,24 @@ its source (document, section or page, line numbers, a link), so every result ca
 Retrieval quality is measured on a labelled question set, so any claim that one search method
 beats another comes with numbers.
 
-**Status: milestone 2 of 6 (keyword search).** Measuring search quality comes next. The plan is
-in [`docs/design.md`](docs/design.md); progress is in [`PROGRESS.md`](PROGRESS.md).
+**Status: milestone 3 of 6 (measured search quality).** Semantic search comes next. The plan
+is in [`docs/design.md`](docs/design.md), the evaluation in
+[`docs/evaluation.md`](docs/evaluation.md), and progress in [`PROGRESS.md`](PROGRESS.md).
+
+## How good is it?
+
+Measured once on 96 held-out test questions about the PEPs (95% bootstrap intervals):
+
+| | Questions using the PEP's terms (59) | Paraphrased questions (37) |
+|---|---|---|
+| Recall@10 | 1.000 | 0.617 [0.468, 0.766] |
+| MRR | 0.894 [0.824, 0.952] | 0.411 [0.292, 0.548] |
+
+Keyword search finds the answer when the question shares its words, and often misses it when
+it doesn't. That gap is what semantic search, the next milestone, has to close. The questions
+were written and labelled by an AI assistant before any search was run on them, not by
+independent judges; [`docs/evaluation.md`](docs/evaluation.md) explains how they were made,
+what was tuned, and what the numbers can't show.
 
 ## Try it
 
@@ -22,7 +38,16 @@ evfind search assignment expressions
 ```
 1,651 passages in 364 documents match. The best passage from each of the top 2 documents:
 
-  1. PEP 379: Adding an Assignment Expression
+  1. PEP 572: Assignment Expressions
+     Exceptional cases · lines 149–181
+     https://peps.python.org/pep-0572/#exceptional-cases
+     source: https://github.com/python/peps/blob/d94bba4a5dff241fd418f30223d3bf05de27a771/peps/pep-0572.rst?plain=1#L149-L181
+     There are a few places where **assignment** **expressions** are not allowed, in order to
+     avoid ambiguities or user confusion: - Unparenthesized **assignment** **expressions** are
+     prohibited at the top level of an **expression** statement…
+     and 53 more matching passages in this document
+
+  2. PEP 379: Adding an Assignment Expression
      Abstract · lines 14–18
      https://peps.python.org/pep-0379/#abstract
      source: https://github.com/python/peps/blob/d94bba4a5dff241fd418f30223d3bf05de27a771/peps/pep-0379.rst?plain=1#L14-L18
@@ -30,19 +55,10 @@ evfind search assignment expressions
      to **assign** the result of an **expression** in almost any place. The new **expression**
      will allow the…
      and 7 more matching passages in this document
-
-  2. PEP 572: Assignment Expressions
-     Differences between  assignment expressions and assignment statements · line 453
-     https://peps.python.org/pep-0572/#differences-between-assignment-expressions-and-assignment-statements
-     source: https://github.com/python/peps/blob/d94bba4a5dff241fd418f30223d3bf05de27a771/peps/pep-0572.rst?plain=1#L453
-     total += tax # Equivalent: (total := total + tax)
-     and 53 more matching passages in this document
 ```
 
 Every result says where it came from: the section and lines, a link to that section, and a
-link to the exact lines in the PEP repository at the snapshot's commit. The second result also
-shows a weakness that milestone 3 will measure: PEP 572's best passage is a single line,
-matched only through its section title, because BM25 favours very short passages.
+link to the exact lines in the PEP repository at the snapshot's commit.
 
 `evfind ingest --peps` builds a library (`evfind.db`) from the bundled PEPs: 712 documents,
 17,165 passages. Your own files work too:

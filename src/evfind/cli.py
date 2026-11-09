@@ -1,4 +1,5 @@
-"""Command line: `evfind search`, `evfind ingest`, `evfind stats`, and `evfind build-snapshot`.
+"""Command line: `evfind search`, `evfind ingest`, `evfind stats`, `evfind eval`, `evfind tune`,
+and `evfind build-snapshot`.
 
 Exit codes: 0 success; 1 something couldn't be done (a missing library, an unreadable
 snapshot), or every file given to `ingest` was unusable; 2 wrong command usage.
@@ -43,6 +44,19 @@ def build_parser() -> argparse.ArgumentParser:
     stats = commands.add_parser("stats", help="what a library holds, and any problems found while importing")
     stats.add_argument("--library", type=Path, default=DEFAULT_LIBRARY)
 
+    ev = commands.add_parser("eval", help="measure search quality on the labelled questions")
+    ev.add_argument("--split", choices=("tuning", "test"), default="test")
+    ev.add_argument("--weights", type=_weights, default=None, metavar="T,S,X",
+                    help="title, section and text weights (default: the tuned ones)")
+    ev.add_argument("--compare", action="store_true", help="also run equal weights and show the paired difference")
+    ev.add_argument("--misses", action="store_true", help="list questions with no relevant document in the top 10")
+    ev.add_argument("--questions", type=Path, default=None, help="a questions file (default: the bundled one)")
+    ev.add_argument("--library", type=Path, default=DEFAULT_LIBRARY)
+
+    tn = commands.add_parser("tune", help="try weight settings on the tuning questions (never the test ones)")
+    tn.add_argument("--questions", type=Path, default=None)
+    tn.add_argument("--library", type=Path, default=DEFAULT_LIBRARY)
+
     snap = commands.add_parser("build-snapshot", help="rebuild the PEP snapshot from a checkout of github.com/python/peps")
     snap.add_argument("checkout", type=Path)
     snap.add_argument("-o", "--output", type=Path, required=True)
@@ -57,6 +71,81 @@ def _limit(text: str) -> int:
     if not 1 <= value <= MAX_LIMIT:
         raise argparse.ArgumentTypeError(f"must be between 1 and {MAX_LIMIT}")
     return value
+
+
+def _weights(text: str) -> tuple[float, float, float]:
+    try:
+        values = tuple(float(part) for part in text.split(","))
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"{text!r}: give three numbers, like 8,1,1") from None
+    if len(values) != 3 or not all(v > 0 for v in values):
+        raise argparse.ArgumentTypeError(f"{text!r}: give three positive numbers, like 8,1,1")
+    return values
+
+
+def _questions(path):
+    from evfind.evaluate import DEFAULT_QUESTIONS, load_questions
+
+    return load_questions(path or DEFAULT_QUESTIONS)
+
+
+def _weights_label(weights) -> str:
+    return "title {:g}, section {:g}, text {:g}".format(*weights)
+
+
+def eval_command(args) -> int:
+    from evfind.evaluate import KINDS, METRICS, EvaluationError, compare, run, summarise
+    from evfind.search import DEFAULT_WEIGHTS, EQUAL_WEIGHTS
+
+    weights = args.weights or DEFAULT_WEIGHTS
+    try:
+        questions = [q for q in _questions(args.questions) if q.split == args.split]
+        with Library.open(args.library) as library:
+            if library.document("pep-0001") is None:
+                raise StoreError(f"{args.library} has no PEPs; the questions are about them: run evfind ingest --peps")
+            outcomes = run(library, questions, weights)
+            baseline = run(library, questions, EQUAL_WEIGHTS) if args.compare else None
+    except (StoreError, EvaluationError) as exc:
+        print(f"evfind: {exc}", file=sys.stderr)
+        return EXIT_FAILED
+    kinds = {kind: [o for o in outcomes if o.question.kind == kind] for kind in KINDS}
+    print(f"{_count(len(questions), args.split + ' question')} ({len(kinds['terms'])} using the PEP's terms, "
+          f"{len(kinds['paraphrase'])} paraphrased); weights {_weights_label(weights)}")
+    print("95% bootstrap intervals in brackets.\n")
+    groups = [("all", outcomes)] + [(kind, group) for kind, group in kinds.items() if group]
+    summaries = {name: summarise(group) for name, group in groups}
+    print(f"{'':<11}" + "".join(f"{name:<22}" for name, _ in groups))
+    for metric in METRICS:
+        print(f"{metric:<11}" + "".join(f"{'{:.3f} [{:.3f}, {:.3f}]'.format(*summaries[name][metric]):<22}"
+                                         for name, _ in groups))
+    if baseline is not None:
+        print(f"\nChange from equal weights ({_weights_label(EQUAL_WEIGHTS)}), paired:")
+        for metric in METRICS:
+            mean, low, high = compare(baseline, outcomes, metric)
+            print(f"  {metric:<10} {mean:+.3f} [{low:+.3f}, {high:+.3f}]")
+    if args.misses:
+        missed = [o for o in outcomes if o.scores["recall@10"] == 0]
+        print(f"\n{_count(len(missed), 'question')} with no relevant document in the top 10:")
+        for o in missed:
+            print(f"  {o.question.id} ({o.question.kind}) {o.question.text}")
+            print(f"      wanted {', '.join(o.question.relevant)}; got {', '.join(o.ranked[:3]) or 'nothing'}")
+    return EXIT_OK
+
+
+def tune_command(args) -> int:
+    from evfind.evaluate import EvaluationError, tune
+
+    try:
+        questions = [q for q in _questions(args.questions) if q.split == "tuning"]
+        with Library.open(args.library) as library:
+            ranking = tune(library, questions)
+    except (StoreError, EvaluationError) as exc:
+        print(f"evfind: {exc}", file=sys.stderr)
+        return EXIT_FAILED
+    print(f"Mean reciprocal rank on {_count(len(questions), 'tuning question')}, best first:")
+    for weights, mrr in ranking:
+        print(f"  {_weights_label(weights):<32} {mrr:.3f}")
+    return EXIT_OK
 
 
 def _emphasis() -> tuple[str, str]:
@@ -176,6 +265,10 @@ def run(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "search":
         return search_command(args)
+    if args.command == "eval":
+        return eval_command(args)
+    if args.command == "tune":
+        return tune_command(args)
     if args.command == "ingest":
         return ingest_command(args, parser)
     if args.command == "stats":

@@ -1,0 +1,145 @@
+{"id": "q001", "split": "tuning", "kind": "terms", "question": "Which PEP is the style guide for Python code?", "relevant": ["pep-0008"]}
+{"id": "q002", "split": "test", "kind": "terms", "question": "Which PEP lists the Zen of Python?", "relevant": ["pep-0020"]}
+{"id": "q003", "split": "tuning", "kind": "terms", "question": "What are the docstring conventions?", "relevant": ["pep-0257"]}
+{"id": "q004", "split": "test", "kind": "terms", "question": "Which PEP introduced type hints?", "relevant": ["pep-0484"]}
+{"id": "q005", "split": "tuning", "kind": "terms", "question": "What is the syntax for variable annotations?", "relevant": ["pep-0526"]}
+{"id": "q006", "split": "test", "kind": "terms", "question": "Which PEP added data classes?", "relevant": ["pep-0557"]}
+{"id": "q007", "split": "test", "kind": "terms", "question": "Which PEP specifies the match statement for structural pattern matching?", "relevant": ["pep-0634", "pep-0622"]}
+{"id": "q008", "split": "tuning", "kind": "terms", "question": "Where is the tutorial for structural pattern matching?", "relevant": ["pep-0636"]}
+{"id": "q009", "split": "test", "kind": "terms", "question": "Which PEP introduced literal string interpolation with f-strings?", "relevant": ["pep-0498"]}
+{"id": "q010", "split": "test", "kind": "terms", "question": "How did f-strings get a formal grammar in the parser?", "relevant": ["pep-0701"]}
+{"id": "q011", "split": "test", "kind": "terms", "question": "Which PEP added function annotations?", "relevant": ["pep-3107"]}
+{"id": "q012", "split": "test", "kind": "terms", "question": "Which PEP added the nonlocal statement?", "relevant": ["pep-3104"]}
+{"id": "q013", "split": "test", "kind": "terms", "question": "When did print become a function?", "relevant": ["pep-3105"]}
+{"id": "q014", "split": "tuning", "kind": "terms", "question": "How do metaclasses work in Python 3?", "relevant": ["pep-3115"]}
+{"id": "q015", "split": "tuning", "kind": "terms", "question": "Which PEP introduced abstract base classes?", "relevant": ["pep-3119"]}
+{"id": "q016", "split": "test", "kind": "terms", "question": "Which PEP added class decorators?", "relevant": ["pep-3129"]}
+{"id": "q017", "split": "test", "kind": "terms", "question": "What is extended iterable unpacking?", "relevant": ["pep-3132"]}
+{"id": "q018", "split": "test", "kind": "terms", "question": "Which PEP added native coroutines with async and await syntax?", "relevant": ["pep-0492"]}
+{"id": "q019", "split": "tuning", "kind": "terms", "question": "Which PEP added asynchronous generators?", "relevant": ["pep-0525"]}
+{"id": "q020", "split": "test", "kind": "terms", "question": "Which PEP added asynchronous comprehensions?", "relevant": ["pep-0530"]}
+{"id": "q021", "split": "test", "kind": "terms", "question": "Which PEP introduced yield from for delegating to a subgenerator?", "relevant": ["pep-0380"]}
+{"id": "q022", "split": "test", "kind": "terms", "question": "Which PEP made generators into coroutines with send?", "relevant": ["pep-0342"]}
+{"id": "q023", "split": "test", "kind": "terms", "question": "Which PEP added the with statement?", "relevant": ["pep-0343"]}
+{"id": "q024", "split": "test", "kind": "terms", "question": "Which PEP added conditional expressions?", "relevant": ["pep-0308"]}
+{"id": "q025", "split": "test", "kind": "terms", "question": "Which PEP introduced decorators for functions and methods?", "relevant": ["pep-0318"]}
+{"id": "q026", "split": "tuning", "kind": "terms", "question": "Which PEP added generator expressions?", "relevant": ["pep-0289"]}
+{"id": "q027", "split": "test", "kind": "terms", "question": "Which PEP introduced simple generators and the yield statement?", "relevant": ["pep-0255"]}
+{"id": "q028", "split": "test", "kind": "terms", "question": "Which PEP defined the iterator protocol?", "relevant": ["pep-0234"]}
+{"id": "q029", "split": "test", "kind": "terms", "question": "Which PEP added dict comprehensions?", "relevant": ["pep-0274"]}
+{"id": "q030", "split": "test", "kind": "terms", "question": "Which PEP added a bool type?", "relevant": ["pep-0285"]}
+{"id": "q031", "split": "test", "kind": "terms", "question": "Which PEP changed the division operator?", "relevant": ["pep-0238"]}
+{"id": "q032", "split": "tuning", "kind": "terms", "question": "Which PEP unified long integers and integers?", "relevant": ["pep-0237"]}
+{"id": "q033", "split": "tuning", "kind": "terms", "question": "How do I define the source code encoding?", "relevant": ["pep-0263"]}
+{"id": "q034", "split": "tuning", "kind": "terms", "question": "Which PEP made UTF-8 the default source encoding?", "relevant": ["pep-3120"]}
+{"id": "q035", "split": "tuning", "kind": "terms", "question": "Which PEP allowed non-ASCII identifiers?", "relevant": ["pep-3131"]}
+{"id": "q036", "split": "test", "kind": "terms", "question": "What is the flexible string representation?", "relevant": ["pep-0393"]}
+{"id": "q037", "split": "test", "kind": "terms", "question": "What is the Python Web Server Gateway Interface, WSGI?", "relevant": ["pep-3333", "pep-0333"]}
+{"id": "q038", "split": "test", "kind": "terms", "question": "What is the Python Database API Specification v2.0?", "relevant": ["pep-0249"]}
+{"id": "q039", "split": "test", "kind": "terms", "question": "Which PEP added virtual environments with venv?", "relevant": ["pep-0405"]}
+{"id": "q040", "split": "test", "kind": "terms", "question": "How was pip bootstrapped with ensurepip?", "relevant": ["pep-0453"]}
+{"id": "q041", "split": "test", "kind": "terms", "question": "What is the wheel binary package format?", "relevant": ["pep-0427"]}
+{"id": "q042", "split": "test", "kind": "terms", "question": "What is the version identification and dependency specification scheme?", "relevant": ["pep-0440"]}
+{"id": "q043", "split": "tuning", "kind": "terms", "question": "Which PEP defined dependency specification for Python software packages?", "relevant": ["pep-0508"]}
+{"id": "q044", "split": "tuning", "kind": "terms", "question": "What is a build-system independent format for source trees?", "relevant": ["pep-0517"]}
+{"id": "q045", "split": "test", "kind": "terms", "question": "How do I specify build system requirements in pyproject.toml?", "relevant": ["pep-0518"]}
+{"id": "q046", "split": "tuning", "kind": "terms", "question": "How is project metadata stored in pyproject.toml?", "relevant": ["pep-0621"]}
+{"id": "q047", "split": "tuning", "kind": "terms", "question": "How do editable installs work for pyproject-based builds?", "relevant": ["pep-0660"]}
+{"id": "q048", "split": "test", "kind": "terms", "question": "What are externally managed environments?", "relevant": ["pep-0668"]}
+{"id": "q049", "split": "tuning", "kind": "terms", "question": "What is inline script metadata?", "relevant": ["pep-0723"]}
+{"id": "q050", "split": "tuning", "kind": "terms", "question": "What are implicit namespace packages?", "relevant": ["pep-0420"]}
+{"id": "q051", "split": "test", "kind": "terms", "question": "Which PEP described absolute and relative imports?", "relevant": ["pep-0328"]}
+{"id": "q052", "split": "test", "kind": "terms", "question": "Which PEP added module __getattr__ and __dir__?", "relevant": ["pep-0562"]}
+{"id": "q053", "split": "tuning", "kind": "terms", "question": "What are __pycache__ repository directories?", "relevant": ["pep-3147"]}
+{"id": "q054", "split": "test", "kind": "terms", "question": "What is postponed evaluation of annotations?", "relevant": ["pep-0563"]}
+{"id": "q055", "split": "test", "kind": "terms", "question": "Which PEP defined protocols for structural subtyping?", "relevant": ["pep-0544"]}
+{"id": "q056", "split": "test", "kind": "terms", "question": "Which PEP allowed type hinting generics in standard collections?", "relevant": ["pep-0585"]}
+{"id": "q057", "split": "test", "kind": "terms", "question": "Which PEP allowed writing union types as X | Y?", "relevant": ["pep-0604"]}
+{"id": "q058", "split": "tuning", "kind": "terms", "question": "What are parameter specification variables, ParamSpec?", "relevant": ["pep-0612"]}
+{"id": "q059", "split": "tuning", "kind": "terms", "question": "What are explicit type aliases?", "relevant": ["pep-0613"]}
+{"id": "q060", "split": "test", "kind": "terms", "question": "What are variadic generics?", "relevant": ["pep-0646"]}
+{"id": "q061", "split": "tuning", "kind": "terms", "question": "What is TypeGuard for user-defined type guards?", "relevant": ["pep-0647"]}
+{"id": "q062", "split": "test", "kind": "terms", "question": "Which PEP added TypedDict?", "relevant": ["pep-0589"]}
+{"id": "q063", "split": "test", "kind": "terms", "question": "What are Literal types?", "relevant": ["pep-0586"]}
+{"id": "q064", "split": "test", "kind": "terms", "question": "Which PEP added the final qualifier for typing?", "relevant": ["pep-0591"]}
+{"id": "q065", "split": "test", "kind": "terms", "question": "What is the Self type?", "relevant": ["pep-0673"]}
+{"id": "q066", "split": "tuning", "kind": "terms", "question": "What is the LiteralString type?", "relevant": ["pep-0675"]}
+{"id": "q067", "split": "tuning", "kind": "terms", "question": "What is the syntax for type parameters in generic classes and functions?", "relevant": ["pep-0695"]}
+{"id": "q068", "split": "test", "kind": "terms", "question": "Which PEP added the override decorator?", "relevant": ["pep-0698"]}
+{"id": "q069", "split": "tuning", "kind": "terms", "question": "Which PEP added the enum type?", "relevant": ["pep-0435"]}
+{"id": "q070", "split": "test", "kind": "terms", "question": "Which PEP added the statistics module?", "relevant": ["pep-0450"]}
+{"id": "q071", "split": "test", "kind": "terms", "question": "Which PEP added concurrent.futures?", "relevant": ["pep-3148"]}
+{"id": "q072", "split": "test", "kind": "terms", "question": "Which PEP reworked the OS and IO exception hierarchy?", "relevant": ["pep-3151"]}
+{"id": "q073", "split": "test", "kind": "terms", "question": "What is exception chaining?", "relevant": ["pep-3134"]}
+{"id": "q074", "split": "test", "kind": "terms", "question": "What are exception groups and except*?", "relevant": ["pep-0654"]}
+{"id": "q075", "split": "test", "kind": "terms", "question": "Which PEP made the global interpreter lock optional?", "relevant": ["pep-0703"]}
+{"id": "q076", "split": "test", "kind": "terms", "question": "Which PEP added a per-interpreter GIL?", "relevant": ["pep-0684"]}
+{"id": "q077", "split": "tuning", "kind": "terms", "question": "What are context variables?", "relevant": ["pep-0567"]}
+{"id": "q078", "split": "test", "kind": "terms", "question": "Which PEP added the matrix multiplication operator?", "relevant": ["pep-0465"]}
+{"id": "q079", "split": "test", "kind": "terms", "question": "What are keyword-only arguments?", "relevant": ["pep-3102"]}
+{"id": "q080", "split": "test", "kind": "terms", "question": "What are positional-only parameters?", "relevant": ["pep-0570"]}
+{"id": "q081", "split": "test", "kind": "terms", "question": "Which PEP added the single-dispatch generic functions?", "relevant": ["pep-0443"]}
+{"id": "q082", "split": "test", "kind": "terms", "question": "Which PEP added the os.scandir function?", "relevant": ["pep-0471"]}
+{"id": "q083", "split": "test", "kind": "terms", "question": "Which PEP added the pathlib module?", "relevant": ["pep-0428"]}
+{"id": "q084", "split": "tuning", "kind": "terms", "question": "Which PEP added the secrets module?", "relevant": ["pep-0506"]}
+{"id": "q085", "split": "tuning", "kind": "terms", "question": "Which PEP added dictionary union operators?", "relevant": ["pep-0584"]}
+{"id": "q086", "split": "tuning", "kind": "terms", "question": "What is the Python 3 UTF-8 Mode?", "relevant": ["pep-0540"]}
+{"id": "q087", "split": "test", "kind": "terms", "question": "Which PEP defined the annual release cycle for Python?", "relevant": ["pep-0602"]}
+{"id": "q088", "split": "tuning", "kind": "terms", "question": "What is the Python Steering Council governance model?", "relevant": ["pep-8016"]}
+{"id": "q089", "split": "test", "kind": "terms", "question": "Which PEP removed dead batteries from the standard library?", "relevant": ["pep-0594"]}
+{"id": "q090", "split": "tuning", "kind": "paraphrase", "question": "How can I give a variable a value in the middle of an if condition?", "relevant": ["pep-0572"]}
+{"id": "q091", "split": "test", "kind": "paraphrase", "question": "How do I check a value against several shapes of data and pull out the parts?", "relevant": ["pep-0634", "pep-0636", "pep-0622"]}
+{"id": "q092", "split": "test", "kind": "paraphrase", "question": "How should I indent and name things so my code looks like everyone else's?", "relevant": ["pep-0008"]}
+{"id": "q093", "split": "tuning", "kind": "paraphrase", "question": "How do I tell a static checker which kinds of values a function takes and returns?", "relevant": ["pep-0484"]}
+{"id": "q094", "split": "tuning", "kind": "paraphrase", "question": "How can I write a class that mostly just holds fields without writing __init__ and __repr__ myself?", "relevant": ["pep-0557"]}
+{"id": "q095", "split": "tuning", "kind": "paraphrase", "question": "How do I put the value of an expression straight into a string literal?", "relevant": ["pep-0498"]}
+{"id": "q096", "split": "test", "kind": "paraphrase", "question": "How can an inner function change a variable that belongs to the enclosing function?", "relevant": ["pep-3104"]}
+{"id": "q097", "split": "test", "kind": "paraphrase", "question": "How do I make some arguments impossible to pass positionally?", "relevant": ["pep-3102"]}
+{"id": "q098", "split": "tuning", "kind": "paraphrase", "question": "How can I stop callers from passing an argument by its name?", "relevant": ["pep-0570"]}
+{"id": "q099", "split": "test", "kind": "paraphrase", "question": "How do I tell the type checker a method returns an instance of whatever class it was called on?", "relevant": ["pep-0673"]}
+{"id": "q100", "split": "test", "kind": "paraphrase", "question": "How do I write a function whose result is waited for without blocking a thread?", "relevant": ["pep-0492"]}
+{"id": "q101", "split": "test", "kind": "paraphrase", "question": "How can one generator hand its work to another generator and get its return value?", "relevant": ["pep-0380"]}
+{"id": "q102", "split": "test", "kind": "paraphrase", "question": "How do I make sure a file gets closed even when an error happens in the block using it?", "relevant": ["pep-0343"]}
+{"id": "q103", "split": "test", "kind": "paraphrase", "question": "How do I pick one of two values in a single expression depending on a test?", "relevant": ["pep-0308"]}
+{"id": "q104", "split": "tuning", "kind": "paraphrase", "question": "How do I wrap a function in another function using the @ syntax?", "relevant": ["pep-0318"]}
+{"id": "q105", "split": "test", "kind": "paraphrase", "question": "Why does dividing two whole numbers give a fraction in Python 3?", "relevant": ["pep-0238"]}
+{"id": "q106", "split": "test", "kind": "paraphrase", "question": "How can I use accented letters or other scripts in variable names?", "relevant": ["pep-3131"]}
+{"id": "q107", "split": "test", "kind": "paraphrase", "question": "How does Python store text so that ASCII strings take one byte per character?", "relevant": ["pep-0393"]}
+{"id": "q108", "split": "test", "kind": "paraphrase", "question": "How do I give each project its own isolated set of installed packages?", "relevant": ["pep-0405"]}
+{"id": "q109", "split": "test", "kind": "paraphrase", "question": "What is the format for a built package that can be installed without running setup.py?", "relevant": ["pep-0427"]}
+{"id": "q110", "split": "tuning", "kind": "paraphrase", "question": "How do version numbers like 1.0rc1 and 2.0.post1 compare?", "relevant": ["pep-0440"]}
+{"id": "q111", "split": "test", "kind": "paraphrase", "question": "How do tools know what is needed to build my package before they build it?", "relevant": ["pep-0518"]}
+{"id": "q112", "split": "tuning", "kind": "paraphrase", "question": "Where do I declare my package's name, version and dependencies in the configuration file?", "relevant": ["pep-0621"]}
+{"id": "q113", "split": "test", "kind": "paraphrase", "question": "Why does pip refuse to install into the system Python on some Linux distributions?", "relevant": ["pep-0668"]}
+{"id": "q114", "split": "test", "kind": "paraphrase", "question": "How can a single-file script declare the packages it needs?", "relevant": ["pep-0723"]}
+{"id": "q115", "split": "tuning", "kind": "paraphrase", "question": "How can one package be split across several directories without an __init__.py?", "relevant": ["pep-0420"]}
+{"id": "q116", "split": "test", "kind": "paraphrase", "question": "Where does Python put compiled bytecode files?", "relevant": ["pep-3147"]}
+{"id": "q117", "split": "test", "kind": "paraphrase", "question": "How can a module compute attributes lazily when they are first accessed?", "relevant": ["pep-0562"]}
+{"id": "q118", "split": "test", "kind": "paraphrase", "question": "How can a class count as an instance of an interface just by having the right methods?", "relevant": ["pep-0544"]}
+{"id": "q119", "split": "test", "kind": "paraphrase", "question": "How do I annotate list[int] without importing List from typing?", "relevant": ["pep-0585"]}
+{"id": "q120", "split": "tuning", "kind": "paraphrase", "question": "How do I say an argument may be an int or None using a vertical bar?", "relevant": ["pep-0604"]}
+{"id": "q121", "split": "tuning", "kind": "paraphrase", "question": "How do I type a decorator that keeps the wrapped function's parameters?", "relevant": ["pep-0612"]}
+{"id": "q122", "split": "test", "kind": "paraphrase", "question": "How do I annotate a dictionary with a fixed set of string keys and value types?", "relevant": ["pep-0589"]}
+{"id": "q123", "split": "tuning", "kind": "paraphrase", "question": "How do I mark a method or class that must not be overridden or subclassed?", "relevant": ["pep-0591"]}
+{"id": "q124", "split": "test", "kind": "paraphrase", "question": "How do I declare a set of named constants as a class?", "relevant": ["pep-0435"]}
+{"id": "q125", "split": "test", "kind": "paraphrase", "question": "How do I compute a mean or median with the standard library?", "relevant": ["pep-0450"]}
+{"id": "q126", "split": "tuning", "kind": "paraphrase", "question": "How can I run a pool of tasks on threads or processes and wait for their results?", "relevant": ["pep-3148"]}
+{"id": "q127", "split": "test", "kind": "paraphrase", "question": "How can an error raised while handling another error keep a link to the original one?", "relevant": ["pep-3134"]}
+{"id": "q128", "split": "test", "kind": "paraphrase", "question": "How do I raise and catch several unrelated errors at once?", "relevant": ["pep-0654"]}
+{"id": "q129", "split": "test", "kind": "paraphrase", "question": "Can Python threads run Python code in parallel on several CPU cores?", "relevant": ["pep-0703"]}
+{"id": "q130", "split": "test", "kind": "paraphrase", "question": "How do I keep per-task state that works correctly with asyncio tasks?", "relevant": ["pep-0567"]}
+{"id": "q131", "split": "test", "kind": "paraphrase", "question": "Which operator was added for multiplying matrices in numeric code?", "relevant": ["pep-0465"]}
+{"id": "q132", "split": "tuning", "kind": "paraphrase", "question": "How do I list a directory's entries along with their file types quickly?", "relevant": ["pep-0471"]}
+{"id": "q133", "split": "tuning", "kind": "paraphrase", "question": "How can I work with filesystem paths as objects instead of strings?", "relevant": ["pep-0428"]}
+{"id": "q134", "split": "tuning", "kind": "paraphrase", "question": "How do I generate a token that is safe to use for password resets?", "relevant": ["pep-0506"]}
+{"id": "q135", "split": "tuning", "kind": "paraphrase", "question": "How do I merge two dictionaries into a new one with an operator?", "relevant": ["pep-0584"]}
+{"id": "q136", "split": "test", "kind": "paraphrase", "question": "How often is a new version of Python released?", "relevant": ["pep-0602"]}
+{"id": "q137", "split": "test", "kind": "paraphrase", "question": "Who makes final decisions about the language after the BDFL stepped down?", "relevant": ["pep-8016", "pep-0013"]}
+{"id": "q138", "split": "test", "kind": "paraphrase", "question": "Which old modules were taken out of the standard library because nobody maintained them?", "relevant": ["pep-0594"]}
+{"id": "q139", "split": "tuning", "kind": "paraphrase", "question": "How do I write an iterator class that a for loop can use?", "relevant": ["pep-0234"]}
+{"id": "q140", "split": "tuning", "kind": "paraphrase", "question": "How do I write a function that produces values lazily one at a time?", "relevant": ["pep-0255"]}
+{"id": "q141", "split": "test", "kind": "paraphrase", "question": "How can I build a set of key-value pairs with a compact loop expression?", "relevant": ["pep-0274"]}
+{"id": "q142", "split": "test", "kind": "paraphrase", "question": "How should a docstring for a function be laid out?", "relevant": ["pep-0257"]}
+{"id": "q143", "split": "test", "kind": "paraphrase", "question": "How do I make an object usable in an await expression and loops over async iterators?", "relevant": ["pep-0492"]}
+{"id": "q144", "split": "test", "kind": "paraphrase", "question": "How do I define a generic class with square brackets after its name?", "relevant": ["pep-0695"]}
+{"id": "q145", "split": "test", "kind": "paraphrase", "question": "How can a function narrow the type of its argument when it returns True?", "relevant": ["pep-0647", "pep-0742"]}

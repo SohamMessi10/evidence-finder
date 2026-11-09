@@ -150,6 +150,43 @@ def test_search_uses_bold_only_in_a_terminal(monkeypatch):
     assert _emphasis() == ("**", "**")
 
 
+def test_eval_reports_a_split_with_the_baseline_and_misses(pep_library, capsys):
+    """On the tuning split, to keep it quick; test_evaluate.py checks the test split's numbers."""
+    assert main(["eval", "--split", "tuning", "--compare", "--misses", "--library", str(pep_library)]) == 0
+    out = capsys.readouterr().out
+    assert out.startswith("49 tuning questions (30 using the PEP's terms, 19 paraphrased); "
+                          "weights title 8, section 1, text 1")
+    assert "mrr        0.797 [" in out
+    assert "Change from equal weights (title 1, section 1, text 1), paired:\n  recall@5" in out
+    assert "  mrr        +0.076 [" in out
+    assert "\n4 questions with no relevant document in the top 10:\n" in out and "wanted pep-" in out
+
+
+def test_tune_uses_only_the_tuning_questions(pep_library, capsys, monkeypatch):
+    monkeypatch.setattr("evfind.evaluate.WEIGHT_GRID", ((1.0, 1.0, 1.0), (8.0, 1.0, 1.0)))  # the full grid takes a minute
+    assert main(["tune", "--library", str(pep_library)]) == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[0] == "Mean reciprocal rank on 49 tuning questions, best first:"
+    assert [line.split() for line in lines[1:]] == [["title", "8,", "section", "1,", "text", "1", "0.797"],
+                                                    ["title", "1,", "section", "1,", "text", "1", "0.721"]]
+
+
+def test_eval_needs_the_peps(tmp_path, capsys):
+    (tmp_path / "a.txt").write_text("hello", encoding="utf-8")
+    library = str(tmp_path / "lib.db")
+    main(["ingest", str(tmp_path / "a.txt"), "--library", library])
+    capsys.readouterr()
+    assert main(["eval", "--library", library]) == 1
+    assert "has no PEPs" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("weights", ["8,1", "8,0,1", "a,b,c"])
+def test_eval_checks_the_weights(pep_library, capsys, weights):
+    with pytest.raises(SystemExit) as exit_info:
+        main(["eval", "--weights", weights, "--library", str(pep_library)])
+    assert exit_info.value.code == 2 and "--weights" in capsys.readouterr().err
+
+
 def test_the_installed_command_runs():
     result = subprocess.run([sys.executable, "-m", "evfind.cli", "--version"], capture_output=True, text=True,
                             timeout=60)

@@ -2,11 +2,59 @@
 
 ## Status
 
-**Milestone 2 of 6 complete: keyword search.** Next: the labelled evaluation set (tuning and
-test questions), its metrics, and `evfind eval`. The full plan is in
-[`docs/design.md`](docs/design.md).
+**Milestone 3 of 6 complete: measured search quality.** Next: semantic (LSA) and hybrid
+search, compared with keyword search on the test questions. The full plan is in
+[`docs/design.md`](docs/design.md); the evaluation is in [`docs/evaluation.md`](docs/evaluation.md).
 
 ## Milestones
+
+### Milestone 3: labelled evaluation
+
+- 145 questions about the PEPs, each with the PEP or PEPs that answer it, written by Claude and
+  checked against the corpus by title before any search was run on them. 89 use the PEP's own
+  terms; 56 are paraphrased. One was dropped (its answer, PEP 202, isn't in the corpus) and two
+  labels removed on re-reading, all before use.
+- Split once by a seeded shuffle within each kind: 49 tuning questions, 96 test questions.
+  `evfind tune` refuses test questions.
+- `evaluate.py`: Recall@5, Recall@10, MRR and nDCG@10 over documents, with 95% percentile
+  bootstrap intervals (fixed seed) and paired comparisons. `evfind eval [--split]
+  [--compare] [--misses]` and `evfind tune`.
+- **Tuning:** of 18 column-weight settings, title 8 / section 1 / text 1 did best on the tuning
+  questions: MRR 0.797 against 0.721 for equal weights, paired +0.076 [+0.025, +0.135]. The grid
+  was extended from 8 to 32 before choosing, because the first best was at its edge.
+- **Found while tuning:** FTS5 normalises BM25 by the whole row's length, so a heavy title
+  weight made each document's shortest passage its "best", showing PEP 577 as its one-line
+  copyright notice. Documents are now ranked by the tuned weights, and the passage shown for
+  each is chosen by its section and text alone. The labels are per document, so that choice is
+  a design decision rather than a measured one.
+- **Test results, run once:** MRR 0.708 [0.631, 0.782], Recall@10 0.852 [0.781, 0.917].
+  - *Terms questions:* MRR 0.894; every labelled PEP is in the top 10.
+  - *Paraphrased questions:* MRR 0.411; 62% of the labelled PEPs are in the top 10.
+  - *Misses:* all 13 questions with no labelled PEP in the top 10 are paraphrased.
+- **The tuned weights didn't clearly carry over:** +0.030 MRR on the test questions, 95% interval
+  [−0.008, +0.072], which includes zero. This is reported as it is; no claim is made that the
+  tuning helped.
+- Not done on purpose: no labels were added after seeing test results (some misses are fair
+  related PEPs), and search wasn't changed after the test run. Dropping common words like "how"
+  and "do" (a question matches 15,186 of 17,165 passages on average) is a candidate for
+  milestone 4, chosen on tuning questions.
+
+**Tests (213, about 70 s; passing on Python 3.12, 3.13 and 3.14):** the metrics against values worked out by hand, and Hypothesis
+properties (every metric between 0 and 1; Recall@5 ≤ Recall@10). They also cover:
+- the bootstrap's reproducibility;
+- the bundled questions: counts, splits, and every label naming a PEP in the corpus;
+- bad question files;
+- tuning refusing test questions;
+- a test that pins the published test-set numbers, so the docs can't drift from the code;
+- the `eval` and `tune` commands.
+
+**Mutation-checked:** 24 deliberate bugs in the metrics, the bootstrap, tuning, the new
+passage choice and the commands. 20 were caught at once. The 4 survivors were gaps in the tests,
+not bugs in the code, and each now has a test:
+- the ideal nDCG not capped at 10 (no question has more than 10 labels);
+- the bootstrap's percentiles replaced by its extremes, and an unseeded bootstrap (the old test
+  used 8 values, too few for the percentiles to move);
+- the `--misses` filter (the test didn't check the count).
 
 ### Milestone 2: keyword search
 

@@ -110,9 +110,12 @@ are still recorded in the library, with why, so `evfind stats` shows them.
   version 1 libraries are upgraded in one transaction when opened.
 - **Queries:** split into words (letters and digits), each quoted, joined with OR, at most 32
   words. Quoting means no input is ever read as FTS5 syntax.
-- **Ranking:** FTS5's `bm25()` with a weight for each column, equal until milestone 3 chooses
-  them on the tuning questions. FTS5 fixes BM25's own parameters (k1 = 1.2, b = 0.75), so the
-  column weights are what can be tuned.
+- **Ranking:** FTS5's `bm25()` with a weight for each column: title 8, section 1, text 1,
+  chosen on the tuning questions in milestone 3 (see [`evaluation.md`](evaluation.md)). FTS5
+  fixes BM25's own parameters (k1 = 1.2, b = 0.75), so the column weights are what can be tuned.
+  Documents are ranked by their best passage under these weights; the passage shown for a
+  document is chosen by section and text only, because `bm25()` normalises by the whole row's
+  length and a heavy title weight would otherwise always pick the shortest passage.
 - **Results:** by default the best passage from each document, with a count of the others that
   matched. Each has an excerpt (FTS5 `snippet()`, with control characters marking the matched
   words so the terminal and the web page can each show them safely), the place (section, page,
@@ -120,11 +123,11 @@ are still recorded in the library, with why, so `evfind stats` shows them.
 
 ## Evaluation (milestone 3)
 
-A labelled set of questions about the PEPs, each with the PEPs that answer it, split before any
-tuning into a **tuning** set (used to choose settings) and a **test** set (used once, for the
-reported numbers). Metrics: Recall@5 and @10 (was a right document found?), MRR (how high was
-the first right one?), nDCG@10. The corpus size, question counts, and how labels were made are
-reported with every result.
+145 labelled questions about the PEPs (89 using the PEP's terms, 56 paraphrased), split before
+any use into 49 **tuning** questions, which choose settings, and 96 **test** questions, which
+report them. Metrics: Recall@5 and @10, MRR and nDCG@10 over documents, with bootstrap
+intervals and paired comparisons. Who wrote the questions, how they were checked, the results
+and their limits are in [`evaluation.md`](evaluation.md).
 
 ## Security
 
