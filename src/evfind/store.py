@@ -185,7 +185,7 @@ class Library:
                                 (key,)).fetchone()
         if row is None:
             return None
-        doc = dict(zip(("key", "kind", "title", "url", "source", "meta", "status"), row))
+        doc = dict(zip(("key", "kind", "title", "url", "source", "meta", "status"), row, strict=True))
         doc["meta"] = json.loads(doc["meta"])
         doc["problems"] = [r[0] for r in self.conn.execute(
             "SELECT detail FROM problems p JOIN documents d ON d.id = p.document_id WHERE d.key = ? ORDER BY p.id",

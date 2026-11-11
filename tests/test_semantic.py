@@ -1,4 +1,5 @@
 import io
+import itertools
 
 import numpy as np
 import pytest
@@ -6,7 +7,14 @@ import pytest
 from evfind import semantic
 from evfind.extract import Extracted, Passage
 from evfind.search import MARK_START, SearchError, search
-from evfind.semantic import SemanticIndex, SemanticUnavailable, fingerprint, fuse, load_index, rank_passages
+from evfind.semantic import (
+    SemanticIndex,
+    SemanticUnavailable,
+    fingerprint,
+    fuse,
+    load_index,
+    rank_passages,
+)
 from evfind.store import Library
 
 VEHICLES = ["car engine wheels road", "automobile engine fuel road", "car automobile driver road",
@@ -169,7 +177,7 @@ def test_hybrid_search_puts_keyword_matches_first_and_adds_related_ones(mixed):
     keys = [h.key for h in hits]
     assert set(keys[:3]) == {"d1", "d2", "d5"}                    # the passages with the word
     assert "d3" in keys[:6]                                       # then related ones, like the truck
-    assert all(a.score >= b.score for a, b in zip(hits, hits[1:]))
+    assert all(a.score >= b.score for a, b in itertools.pairwise(hits))
 
 
 def test_hybrid_shows_the_keyword_passage_of_a_document_that_matched_words(monkeypatch):

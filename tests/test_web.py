@@ -10,7 +10,13 @@ from evfind.cli import main
 from evfind.extract import Extracted, Passage
 from evfind.search import MARK_END, MARK_START
 from evfind.store import Library
-from evfind.web import MAX_QUERY_CHARS, SECURITY_HEADERS, create_app, excerpt_html, excerpt_spans
+from evfind.web import (
+    MAX_QUERY_CHARS,
+    SECURITY_HEADERS,
+    create_app,
+    excerpt_html,
+    excerpt_spans,
+)
 
 
 @pytest.fixture(scope="module")

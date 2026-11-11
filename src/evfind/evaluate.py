@@ -139,7 +139,7 @@ def compare(before: list[Outcome], after: list[Outcome], metric: str) -> tuple[f
     """The mean per-question change in a metric, and its paired 95% bootstrap interval."""
     if [o.question.id for o in before] != [o.question.id for o in after]:
         raise ValueError("the two runs must be on the same questions, in the same order")
-    differences = [b.scores[metric] - a.scores[metric] for a, b in zip(before, after)]
+    differences = [b.scores[metric] - a.scores[metric] for a, b in zip(before, after, strict=True)]
     return (sum(differences) / len(differences), *bootstrap_interval(differences))
 
 

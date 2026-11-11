@@ -21,7 +21,16 @@ from fastapi import FastAPI, Query
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 
 from evfind import semantic
-from evfind.search import MARK_END, MARK_START, MAX_LIMIT, METHODS, Results, SearchError, render_excerpt, search
+from evfind.search import (
+    MARK_END,
+    MARK_START,
+    MAX_LIMIT,
+    METHODS,
+    Results,
+    SearchError,
+    render_excerpt,
+    search,
+)
 from evfind.store import Library, StoreError
 
 MAX_QUERY_CHARS = 500

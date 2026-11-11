@@ -1,3 +1,4 @@
+import itertools
 import re
 
 import pytest
@@ -7,8 +8,8 @@ from hypothesis import strategies as st
 
 from evfind.extract import (
     MAX_PASSAGE_WORDS,
-    TRANSITION,
     PASSAGE_WORDS,
+    TRANSITION,
     extract_file,
     is_title,
     segment_markdown,
@@ -208,7 +209,7 @@ def test_plain_passages_keep_every_word_in_order_within_the_limits(doc):
     assert all(1 <= p.words <= MAX_PASSAGE_WORDS for p in passages)
     # only the last passage may be short of the target without a reason: a paragraph that would overflow the limit
     lines = text.splitlines()
-    for before, after in zip(passages, passages[1:]):
+    for before, after in itertools.pairwise(passages):
         assert before.line_end < after.line_start
         assert before.words >= PASSAGE_WORDS or before.words + after_first_paragraph(after, lines) > MAX_PASSAGE_WORDS
     assert [p.ordinal for p in passages] == list(range(len(passages)))
@@ -252,7 +253,7 @@ def test_every_bundled_pep_has_the_sections_docutils_finds():
         theirs = [normalised(section[0].astext()) for section in tree.findall(nodes.section)]
         # docutils renders a footnote reference as its number, so compare titles with those removed
         theirs = [t.rstrip("0123456789") if o != t and o == t.rstrip("0123456789") else t
-                  for o, t in zip(ours, theirs)] + theirs[len(ours):]
+                  for o, t in zip(ours, theirs, strict=False)] + theirs[len(ours):]
         assert ours == theirs, pep.key
         sections += len(ours)
     assert sections > 14_000

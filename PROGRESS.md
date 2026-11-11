@@ -2,11 +2,28 @@
 
 ## Status
 
-**Milestone 5 of 6 complete: a local search page.** Next: the final write-up (README,
-architecture, resume and interview material). The full plan is in [`docs/design.md`](docs/design.md);
-the evaluation is in [`docs/evaluation.md`](docs/evaluation.md).
+**All 6 milestones complete.** The README summarises the project; the design is in
+[`docs/design.md`](docs/design.md) and the evaluation in [`docs/evaluation.md`](docs/evaluation.md).
+
+Not confirmed from where this was built (no access to the repository's CI results or to GitHub
+pages): that the CI runs pass, and that the `?plain=1` line links highlight lines in
+reStructuredText files. The tests did pass on Linux (Python 3.12, 3.13, 3.14) and on a Mac
+(Python 3.13).
 
 ## Milestones
+
+### Milestone 6: write-up and final audit
+
+- The README was rewritten: the problem, results with their intervals (including the ones that
+  didn't hold up), quick start, commands, an architecture diagram, how it works, testing,
+  security, limitations and future work.
+- Audit with ruff (pyflakes, bugbear, pyupgrade, simplify, import order) found only `zip()` calls
+  without `strict=`. Two in the code now use `strict=True`, so a length mismatch raises instead of
+  silently truncating. The tests' neighbour comparisons use `itertools.pairwise`. ruff 0.17 is now
+  a dev dependency, configured in `pyproject.toml`, and CI runs it before the tests.
+- Kept as decided before the test run: keyword search is the default. Hybrid is recommended in
+  the README, with the evidence and what would be needed to switch.
+
 
 ### Milestone 5: the search page
 

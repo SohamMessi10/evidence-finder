@@ -25,7 +25,8 @@ dev = [
     "pytest>=9.1,<10",
     "hypothesis>=6.170,<7",
     "fpdf2>=2.8.9,<3",   # only to generate test PDFs
-    "httpx2>=2.16,<3",   # FastAPI's TestClient (Starlette prefers it to httpx)
+    "httpx2>=2.16,<3",
+    "ruff>=0.17.3,<0.18",   # lint; CI runs it   # FastAPI's TestClient (Starlette prefers it to httpx)
 ]
 
 [project.scripts]
@@ -36,6 +37,14 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 evfind = ["data/*.jsonl.gz"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+
+[tool.ruff.lint]
+# pyflakes, syntax errors, bugbear, pyupgrade, simplify, import order
+select = ["F", "E9", "B", "UP", "SIM", "I"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,3 +1,4 @@
+import itertools
 import sqlite3
 
 import pytest
@@ -237,7 +238,7 @@ def test_pep_hits_are_ranked_grouped_and_referenced(peps):
     hits = results.hits
     assert len(hits) == 20 and len({h.key for h in hits}) == 20
     assert [h.rank for h in hits] == list(range(1, 21))
-    assert all(a.score >= b.score for a, b in zip(hits, hits[1:]))
+    assert all(a.score >= b.score for a, b in itertools.pairwise(hits))
     for hit in hits:
         lines = f"L{hit.line_start}" if hit.line_start == hit.line_end else f"L{hit.line_start}-L{hit.line_end}"
         assert hit.source_url == ("https://github.com/python/peps/blob/d94bba4a5dff241fd418f30223d3bf05de27a771/"
