@@ -138,6 +138,27 @@ are still recorded in the library, with why, so `evfind stats` shows them.
   matched word to mark.
 - **Default:** keyword search, fixed before the test comparison; `--method semantic|hybrid`.
 
+## Search page (milestone 5)
+
+- **`web.py`**, FastAPI: `/` (the page), `/api/search` (JSON, with highlight positions as
+  character offsets), `/health`, `/style.css`. Server-rendered HTML with no JavaScript.
+- **`evfind serve`** binds 127.0.0.1 only: the page reads your library, so it isn't offered to
+  the network.
+- **Safety:** every value is HTML-escaped before the excerpt's match markers (control
+  characters) become `<mark>` tags. A Content Security Policy of `default-src 'none'` with only
+  same-origin styles means no script can run even if escaping failed. `nosniff`,
+  `no-referrer`, and `rel="noopener noreferrer"` on outbound links. Queries are capped at 500
+  characters and results at 100.
+- **Threads:** each request opens its own SQLite connection, since FastAPI runs plain functions
+  on a thread pool (the lesson from SplitLedger). The LSA index is loaded once and shared,
+  behind a lock so two requests never build it at the same time.
+- **States:** an introduction with example searches; no results; a query with no words; a bad
+  method or count; a query too long; a missing library (503, saying how to make one); a library
+  too small for semantic search.
+- **Highlighting** leaves common English words unmarked: a question's "a" or "when" matches
+  almost every passage, and marking them hid the matches that matter. Display only; ranking is
+  unchanged.
+
 ## Evaluation (milestone 3)
 
 145 labelled questions about the PEPs (89 using the PEP's terms, 56 paraphrased), split before

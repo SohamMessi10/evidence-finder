@@ -2,11 +2,50 @@
 
 ## Status
 
-**Milestone 4 of 6 complete: semantic and hybrid search, measured.** Next: a search page
-(FastAPI) showing ranked excerpts with links to the exact source. The full plan is in
-[`docs/design.md`](docs/design.md); the evaluation is in [`docs/evaluation.md`](docs/evaluation.md).
+**Milestone 5 of 6 complete: a local search page.** Next: the final write-up (README,
+architecture, resume and interview material). The full plan is in [`docs/design.md`](docs/design.md);
+the evaluation is in [`docs/evaluation.md`](docs/evaluation.md).
 
 ## Milestones
+
+### Milestone 5: the search page
+
+- `evfind serve`: a FastAPI page on 127.0.0.1 (FastAPI 0.162.0, uvicorn 0.54.0; both pinned to
+  one minor version, since 0.x releases can break). There's also a JSON API with highlight
+  offsets. Design, safety and states are in [`docs/design.md`](docs/design.md#search-page-milestone-5).
+- Checked in a real browser (Playwright's Chromium): 10 result cards, no console errors, and no
+  horizontal scrolling at a phone's 390 px width. Screenshots are in `docs/images/`.
+- Found by looking at the screenshots, and fixed:
+  - Common words ("a", "an", "when") were highlighted. Now they're matched but not marked.
+  - The dark-mode button had white text on light blue. It now uses dark text.
+  - The first showcase query was one of hybrid search's *misses*, which would have misled. The
+    README now shows one it gets right (PEP 3104 for an inner function changing an outer
+    variable), and the evaluation says where it fails.
+- Starlette 1.10 deprecates `httpx` for its test client in favour of `httpx2`. That's Pydantic's
+  package (checked on PyPI before using it), and Starlette imports it first.
+
+**Tests (283, about 2.5 min):** for the page and API, 35 tests, covering:
+- document titles, text, sections and paths containing `<script>` and `<img onerror>`, which
+  must come out escaped (no tag other than the page's own appears);
+- the query echoed safely;
+- the security headers on every response;
+- every error and empty state, including a missing library;
+- the semantic index built once across requests;
+- API validation, with highlight offsets checked against the excerpt, including a Hypothesis
+  property;
+- `serve` binding 127.0.0.1 and checking its port.
+
+**Mutation-checked:** 15 deliberate bugs. 10 were caught at once. Of the rest:
+- **The content-security policy loosened to `default-src *`:** the test compared the headers
+  against the same constant the mutant changed. It now checks the policy's text.
+- **Link targets unescaped:** no test used a hostile URL. Now one does.
+- **Allowing ports below 1024:** the port test didn't stub out the server, so under this mutant
+  it started a real one and hung. It now stubs the server, and fails if one starts.
+- **The page's own limit check:** it duplicated the search's check, so it was removed.
+- **Highlighting every matched word:** not reached by the first run, which stopped early; it is
+  now caught.
+All 15 are now caught or removed.
+
 
 ### Milestone 4: semantic and hybrid search
 

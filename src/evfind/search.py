@@ -91,6 +91,18 @@ def match_expression(query: str) -> tuple[str, tuple[str, ...]]:
     return " OR ".join(f'"{word}"' for word in words), tuple(words)
 
 
+_MARKED = re.compile(f"{MARK_START}(.*?){MARK_END}", re.S)
+
+
+def _unmark_common_words(excerpt: str) -> str:
+    """Leave common English words ("a", "do", "when") unmarked. A query's common words match
+    almost every passage, so marking them hides the matches that matter. Display only: ranking
+    is unchanged."""
+    from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
+
+    return _MARKED.sub(lambda m: m.group(0) if m.group(1).lower() not in ENGLISH_STOP_WORDS else m.group(1), excerpt)
+
+
 def render_excerpt(excerpt: str, start: str, end: str) -> str:
     """The excerpt on one line, with the matched words between `start` and `end`."""
     return " ".join(excerpt.split()).replace(MARK_START, start).replace(MARK_END, end)
@@ -216,7 +228,7 @@ def search(library: Library, query: str, *, limit: int = 10, per_document: int |
             url=f"{url}#{anchor}" if url and anchor else url,
             source_url=source_url(json.loads(meta), line_start, line_end),
             section=section, page=page, line_start=line_start, line_end=line_end,
-            excerpt=excerpts.get(passage_id, opening),
+            excerpt=_unmark_common_words(excerpts.get(passage_id, opening)),
             more_in_document=max(keyword_count[document] - 1, 0),  # 0 for semantic: no keyword matches
         ))
     found = {pid for pid, *_ in keyword_rows} | {pid for pid, *_ in semantic_rows}

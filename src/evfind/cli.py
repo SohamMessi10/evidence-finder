@@ -1,5 +1,5 @@
-"""Command line: `evfind search`, `evfind ingest`, `evfind stats`, `evfind eval`, `evfind tune`,
-and `evfind build-snapshot`.
+"""Command line: `evfind search`, `evfind serve`, `evfind ingest`, `evfind stats`, `evfind eval`,
+`evfind tune`, and `evfind build-snapshot`.
 
 Exit codes: 0 success; 1 something couldn't be done (a missing library, an unreadable
 snapshot), or every file given to `ingest` was unusable; 2 wrong command usage.
@@ -46,6 +46,10 @@ def build_parser() -> argparse.ArgumentParser:
     stats = commands.add_parser("stats", help="what a library holds, and any problems found while importing")
     stats.add_argument("--library", type=Path, default=DEFAULT_LIBRARY)
 
+    serve = commands.add_parser("serve", help="the search page, at http://127.0.0.1:PORT (this computer only)")
+    serve.add_argument("--port", type=_port, default=8765, help="default 8765")
+    serve.add_argument("--library", type=Path, default=DEFAULT_LIBRARY)
+
     ev = commands.add_parser("eval", help="measure search quality on the labelled questions")
     ev.add_argument("--split", choices=("tuning", "test"), default="test")
     ev.add_argument("--weights", type=_weights, default=None, metavar="T,S,X",
@@ -79,6 +83,32 @@ def _limit(text: str) -> int:
     if not 1 <= value <= MAX_LIMIT:
         raise argparse.ArgumentTypeError(f"must be between 1 and {MAX_LIMIT}")
     return value
+
+
+def _port(text: str) -> int:
+    try:
+        value = int(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"{text!r} isn't a port number") from None
+    if not 1024 <= value <= 65535:
+        raise argparse.ArgumentTypeError("must be between 1024 and 65535")
+    return value
+
+
+def serve_command(args) -> int:
+    """Serve the search page on 127.0.0.1 only: it reads your library, so it isn't offered to the network."""
+    import uvicorn
+
+    from evfind.web import create_app
+
+    try:
+        Library.open(args.library).close()  # fail now, with the reason, rather than on the first page
+    except StoreError as exc:
+        print(f"evfind: {exc}", file=sys.stderr)
+        return EXIT_FAILED
+    print(f"Evidence Finder: http://127.0.0.1:{args.port}/  (Ctrl-C stops it)")
+    uvicorn.run(create_app(args.library), host="127.0.0.1", port=args.port, log_level="warning")
+    return EXIT_OK
 
 
 def _weights(text: str) -> tuple[float, float, float]:
@@ -307,6 +337,8 @@ def run(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "search":
         return search_command(args)
+    if args.command == "serve":
+        return serve_command(args)
     if args.command == "eval":
         return eval_command(args)
     if args.command == "tune":

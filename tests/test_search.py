@@ -133,6 +133,14 @@ def test_the_excerpt_is_always_from_the_passage_text(library):
     assert search(library, "walrus").hits[0].excerpt == "Nothing about it in the text."
 
 
+def test_common_words_are_matched_but_not_marked(library):
+    add(library, "a", "Doc A", "When a walrus does arrive, the keeper is ready.")
+    hit = search(library, "when does a walrus arrive").hits[0]
+    # "when" and "a" are in scikit-learn's English stop words; "does" isn't, so it stays marked
+    assert hit.excerpt == (f"When a {MARK_START}walrus{MARK_END} {MARK_START}does{MARK_END} "
+                           f"{MARK_START}arrive{MARK_END}, the keeper is ready.")
+
+
 def test_render_excerpt_puts_it_on_one_line():
     assert render_excerpt(f"one\n\n  two {MARK_START}three{MARK_END}\tfour", "[", "]") == "one two [three] four"
 

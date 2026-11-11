@@ -5,7 +5,7 @@ its source (document, section or page, line numbers, a link), so every result ca
 Retrieval quality is measured on a labelled question set, so any claim that one search method
 beats another comes with numbers.
 
-**Status: milestone 4 of 6 (semantic and hybrid search, measured).** A search page comes next.
+**Status: milestone 5 of 6 (a local search page).** The final write-up comes next.
 The plan is in [`docs/design.md`](docs/design.md), the evaluation in
 [`docs/evaluation.md`](docs/evaluation.md), and progress in [`PROGRESS.md`](PROGRESS.md).
 
@@ -28,6 +28,8 @@ were written and labelled by an AI assistant before any search was run on them, 
 independent judges; [`docs/evaluation.md`](docs/evaluation.md) explains how they were made,
 what was tuned, and what the numbers can't show.
 
+![The search page: hybrid search answers a paraphrased question with PEP 3104, each result linking to its section and exact lines](docs/images/search-hybrid.png)
+
 ## Try it
 
 Python 3.12–3.14.
@@ -37,7 +39,13 @@ python -m pip install -e ".[dev]"
 python -m pytest
 evfind ingest --peps
 evfind search assignment expressions
+evfind serve
 ```
+
+`evfind serve` opens a search page at http://127.0.0.1:8765/, on this computer only. It has a
+query box and a choice of keyword, hybrid or meaning-only search. Each result shows the passage
+with the matched words highlighted, its section and lines, and links to the section and to the
+exact lines. A JSON API answers at `/api/search?q=…&method=hybrid`.
 
 ```
 1,651 passages in 364 documents match. The best passage from each of the top 2 documents:

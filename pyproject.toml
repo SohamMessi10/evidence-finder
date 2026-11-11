@@ -13,9 +13,11 @@ license-files = ["LICENSE"]
 # Lower bounds are releases at least two weeks old when they were chosen (2026-11-07).
 dependencies = [
     "docutils>=0.23,<1",
+    "fastapi>=0.162.0,<0.163",   # the search page; 0.x minors can break, so one minor at a time
     "numpy>=2.5,<3",
     "pypdf>=6.21,<7",
     "scikit-learn>=1.9.1,<2",   # LSA for semantic search (TF-IDF and truncated SVD)
+    "uvicorn>=0.54,<0.55",      # serves the search page
 ]
 
 [project.optional-dependencies]
@@ -23,6 +25,7 @@ dev = [
     "pytest>=9.1,<10",
     "hypothesis>=6.170,<7",
     "fpdf2>=2.8.9,<3",   # only to generate test PDFs
+    "httpx2>=2.16,<3",   # FastAPI's TestClient (Starlette prefers it to httpx)
 ]
 
 [project.scripts]
